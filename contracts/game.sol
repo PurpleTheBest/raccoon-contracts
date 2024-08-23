@@ -5,21 +5,17 @@ import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 contract Game {
     enum TerrainType { Forest, DeepWater, Water, Flat, Mountain }
     enum BiomeType { Normal, Desert, Snow }
-    enum BuildingType { Castle, Shop, Tavern }
-
-    struct Building {
-        uint256 id;
-        BuildingType buildingType;
-        string name;
-        address owner;
-    }
+    enum BuildingType { None, Castle, Shop, Tavern }
 
     struct Tile {
+        string name;
         uint256 x;
         uint256 y;
         TerrainType terrainType;
         BiomeType biomeType;
-        Building building;
+        BuildingType buildingType;
+        address blueprint;
+        address owner;
     }
 
     struct Map {
@@ -62,11 +58,37 @@ contract Game {
         }
     }
 
-    function __setBuilding__(uint256 x, uint256 y, Building memory building) public onlyOwner {
-        Tile storage tile = map[x][y];
+    function __updateTile(Tile memory tile) public onlyOwner {
+         map[tile.x][tile.y] = tile;
+    }
 
-        require(tile.x == x && tile.y == y, "Tile does not exist");
+    function getMap() public view returns (Map memory) {
+        Tile[] memory tilesArray = new Tile[](_mapWidth * _mapHeight);
+        uint256 index = 0;
 
-        tile.building = building;
+        for (uint256 x = 0; x < _mapWidth; x++) {
+            for (uint256 y = 0; y < _mapHeight; y++) {
+                Tile storage tile = map[x][y];
+                // Check if tile is initialized
+                if (tile.x == x && tile.y == y) {
+                    tilesArray[index] = tile;
+                    index++;
+                }
+            }
+        }
+
+        // Resize the array to the actual number of initialized tiles
+        Tile[] memory resultArray = new Tile[](index);
+        for (uint256 i = 0; i < index; i++) {
+            resultArray[i] = tilesArray[i];
+        }
+
+        Map memory currentMap = Map({
+            height: _mapHeight,
+            width: _mapWidth,
+            tiles: resultArray
+        });
+
+        return currentMap;
     }
 }
