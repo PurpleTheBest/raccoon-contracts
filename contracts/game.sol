@@ -1,19 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import './models.sol';
+import './blueprint.sol';
 
 contract Game {
-    enum TerrainType { Forest, DeepWater, Water, Flat, Mountain }
-    enum BiomeType { Normal, Desert, Snow }
-    enum BuildingType { None, Castle, Shop, Tavern }
-
-    struct Tile {
+    
+     struct Tile {
         string name;
         uint256 x;
         uint256 y;
-        TerrainType terrainType;
-        BiomeType biomeType;
-        BuildingType buildingType;
+        Models.TerrainType terrainType;
+        Models.BiomeType biomeType;
         address blueprint;
         address owner;
     }
@@ -24,16 +22,20 @@ contract Game {
         Tile[] tiles;
     }
 
+    struct Cordinates{
+        uint256 x;
+        uint256 y;
+    }
+
     uint256 private _mapWidth;
     uint256 private _mapHeight;
     address private _nativeCurrency;
     address private _owner;
     string private _mapName;
 
-
-    uint256 private _buildingIds = 0;
-
-    mapping(uint256 => mapping(uint256 => Tile)) public map;
+    mapping (address => address) private _blueprints;
+    mapping(uint256 => mapping(uint256 => Tile)) private _tiles;
+    mapping(address => Cordinates[]) private _ownedTiles;
 
     modifier onlyOwner() {
         require(msg.sender == _owner, "Not allowed");
@@ -51,15 +53,21 @@ contract Game {
         _nativeCurrency = nativeCurrency;
     }
 
-    function __initializeTiles(Tile[] memory tiles) public onlyOwner {
+    function __initializeTiles__(Tile[] memory tiles) public onlyOwner {
         for (uint256 i = 0; i < tiles.length; i++) {
             Tile memory tile = tiles[i];
-            map[tile.x][tile.y] = tile;
+            _tiles[tile.x][tile.y] = tile;
         }
     }
 
-    function __updateTile(Tile memory tile) public onlyOwner {
-         map[tile.x][tile.y] = tile;
+    function __setBlueprints__(address[] memory blueprints) public onlyOwner {
+        for(uint256 i =0; i< blueprints.length; i++){
+            _blueprints[blueprints[i]] = blueprints[i];
+        }
+    }
+
+    function __updateTile__(Tile memory tile) public onlyOwner {
+         _tiles[tile.x][tile.y] = tile;
     }
 
     function getMap() public view returns (Map memory) {
@@ -68,8 +76,7 @@ contract Game {
 
         for (uint256 x = 0; x < _mapWidth; x++) {
             for (uint256 y = 0; y < _mapHeight; y++) {
-                Tile storage tile = map[x][y];
-                // Check if tile is initialized
+                Tile storage tile = _tiles[x][y];
                 if (tile.x == x && tile.y == y) {
                     tilesArray[index] = tile;
                     index++;
@@ -77,7 +84,6 @@ contract Game {
             }
         }
 
-        // Resize the array to the actual number of initialized tiles
         Tile[] memory resultArray = new Tile[](index);
         for (uint256 i = 0; i < index; i++) {
             resultArray[i] = tilesArray[i];
@@ -91,4 +97,36 @@ contract Game {
 
         return currentMap;
     }
-}
+
+    function buyTile(uint256 x, uint256 y, address blueprintAddress) public{
+
+        require(_blueprints[blueprintAddress] == blueprintAddress, "Invalid blueprint");
+
+        Blueprint blueprint = Blueprint(blueprintAddress);
+        Tile memory tile = _tiles[x][y];
+
+        require(blueprint.getAllowedTerrainType(tile.terrainType) == tile.terrainType, "Invalid terrain type");
+        require(tile.terrainType != Models.TerrainType.None, "Tile not found");
+        require(tile.owner == address(0), "Tile is already occupied");
+
+        Cordinates[] memory ownedTiles = _ownedTiles[msg.sender];
+
+        if(
+            ownedTiles.length != 0
+            && _tiles[x+1][y+1].owner != msg.sender 
+            && _tiles[x][y+1].owner != msg.sender 
+            && _tiles[x-1][y+1].owner != msg.sender 
+            && _tiles[x-1][y].owner != msg.sender 
+            && _tiles[x][y-1].owner != msg.sender 
+            && _tiles[x+1][y].owner != msg.sender){
+                revert("Unable to buy");
+        }
+
+        blueprint.burn(1);
+
+        tile.owner = msg.sender;
+        tile.blueprint = blueprintAddress;
+
+        _ownedTiles[msg.sender].push(Cordinates({x:x, y:y})); // check if array require init
+    }
+} 
