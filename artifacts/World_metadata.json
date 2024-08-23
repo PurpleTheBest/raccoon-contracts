@@ -9,18 +9,8 @@
 				"inputs": [
 					{
 						"internalType": "string",
-						"name": "worldName",
+						"name": "worldName_",
 						"type": "string"
-					},
-					{
-						"internalType": "uint256",
-						"name": "width",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "height",
-						"type": "uint256"
 					}
 				],
 				"stateMutability": "nonpayable",
@@ -65,6 +55,44 @@
 					}
 				],
 				"name": "__createBuildings__",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "enum World.TerrainType[]",
+						"name": "terrainType",
+						"type": "uint8[]"
+					},
+					{
+						"internalType": "uint256[]",
+						"name": "price",
+						"type": "uint256[]"
+					},
+					{
+						"internalType": "uint256[]",
+						"name": "x",
+						"type": "uint256[]"
+					},
+					{
+						"internalType": "uint256[]",
+						"name": "y",
+						"type": "uint256[]"
+					},
+					{
+						"internalType": "uint256",
+						"name": "row_",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "column_",
+						"type": "uint256"
+					}
+				],
+				"name": "__createLandfields__",
 				"outputs": [],
 				"stateMutability": "nonpayable",
 				"type": "function"
@@ -176,13 +204,6 @@
 			},
 			{
 				"inputs": [],
-				"name": "generateIsland",
-				"outputs": [],
-				"stateMutability": "nonpayable",
-				"type": "function"
-			},
-			{
-				"inputs": [],
 				"name": "getBuildings",
 				"outputs": [
 					{
@@ -229,72 +250,6 @@
 						"internalType": "uint256",
 						"name": "",
 						"type": "uint256"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [
-					{
-						"internalType": "uint256",
-						"name": "x",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "y",
-						"type": "uint256"
-					}
-				],
-				"name": "getLandfield",
-				"outputs": [
-					{
-						"components": [
-							{
-								"internalType": "address",
-								"name": "owner",
-								"type": "address"
-							},
-							{
-								"internalType": "uint256",
-								"name": "price",
-								"type": "uint256"
-							},
-							{
-								"internalType": "uint256",
-								"name": "sellPrice",
-								"type": "uint256"
-							},
-							{
-								"internalType": "enum World.TerrainType",
-								"name": "terrainType",
-								"type": "uint8"
-							},
-							{
-								"internalType": "address",
-								"name": "recipe",
-								"type": "address"
-							},
-							{
-								"internalType": "uint256",
-								"name": "lastClaim",
-								"type": "uint256"
-							},
-							{
-								"internalType": "uint256",
-								"name": "x",
-								"type": "uint256"
-							},
-							{
-								"internalType": "uint256",
-								"name": "y",
-								"type": "uint256"
-							}
-						],
-						"internalType": "struct World.Landfield",
-						"name": "",
-						"type": "tuple"
 					}
 				],
 				"stateMutability": "view",
@@ -473,6 +428,19 @@
 				"outputs": [],
 				"stateMutability": "nonpayable",
 				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "worldName",
+				"outputs": [
+					{
+						"internalType": "string",
+						"name": "",
+						"type": "string"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
 			}
 		],
 		"devdoc": {
@@ -591,11 +559,11 @@
 			]
 		},
 		"world.sol": {
-			"keccak256": "0x461301d889e63b7955339b7eb296bc9a9f9b767cb355339382b47e5c2c04b5bd",
+			"keccak256": "0xef6ccce66cb75d7b55033e89d192e62881c66e794f8d4c252a0494eb08f99c81",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://9ebb0a4cb23f76ab29a90dcf6216adceac843e9fe4fac954f98b8b3cf33a762b",
-				"dweb:/ipfs/QmaRhqgKcBKSgB27YjEUwAFhe4EuuKz9eiZJ4cgobHoTfq"
+				"bzz-raw://12e6c3ece32f93dbf4281fdf0448b245a6be02f54a632ce1590658dda7363413",
+				"dweb:/ipfs/Qmcdz2haNh62jp2JfMjFj1TV3GVdjQbMn9LtwpCJ9z9J1B"
 			]
 		}
 	},
