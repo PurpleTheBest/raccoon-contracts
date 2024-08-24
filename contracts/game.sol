@@ -22,6 +22,7 @@ contract Game {
     struct Map {
         uint256 height;
         uint256 width;
+        uint256 length;
         Tile[] tiles;
     }
 
@@ -33,11 +34,12 @@ contract Game {
 
     uint256 private _mapWidth;
     uint256 private _mapHeight;
-    uint256 private _mapLength;
-    Resource private _nativeResource;
-    Blueprint private _castleBlueprint;
+    uint256 private _mapLength;    
     address private _owner;
     string private _mapName;
+
+    Resource private _nativeResource;
+    Blueprint private _castleBlueprint;
 
     mapping (address => Blueprint) private _blueprints;
     mapping (address => Resource) private _resources;
@@ -54,9 +56,10 @@ contract Game {
         _;
     }
 
-    constructor(uint256 mapWidth, uint256 mapHeight, string memory mapName) {
+    constructor(uint256 mapWidth, uint256 mapHeight, uint256 mapLength, string memory mapName) {
         _mapWidth= mapWidth;
         _mapHeight = mapHeight;
+        _mapLength = mapLength;
         _mapName = mapName;
         _owner = msg.sender;
     }
@@ -116,6 +119,7 @@ contract Game {
         Map memory currentMap = Map({
             height: _mapHeight,
             width: _mapWidth,
+            length: _mapLength,
             tiles: resultArray
         });
 
@@ -142,13 +146,12 @@ contract Game {
 
     function occupyTile(uint256 x, uint256 y, uint256 z, address blueprintAddress) public{
          
-        require(_blueprints[blueprintAddress].getBlueprintDetails().buildingType != Models.BuildingType.None, "Invalid blueprint");
+        Blueprint blueprint = _blueprints[blueprintAddress];
+        require(_isBlueprintDefined(blueprint), "Invalid blueprint");
 
         Tile memory tile = _tiles[x][y][z];
-
         require(_isTileDefined(tile), "Tile not found");
 
-        Blueprint blueprint = Blueprint(blueprintAddress);
         require(blueprint.isAllowedTerrainType(tile.terrainType), "Invalid terrain type");
 
         Cordinates[] memory ownedTiles = _ownedTiles[msg.sender];
@@ -165,6 +168,10 @@ contract Game {
 
     function _isTileDefined(Tile memory tile) private pure returns (bool){
         return tile.terrainType != Models.TerrainType.None;
+    }
+
+    function _isBlueprintDefined(Blueprint blueprint) private view returns (bool){
+        return blueprint.getBlueprintDetails().buildingType != Models.BuildingType.None;
     }
 
     function _isTileFreeToOccupy(Tile memory tile) private view returns (bool){
