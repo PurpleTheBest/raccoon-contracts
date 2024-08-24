@@ -26,6 +26,7 @@ contract Blueprint is ERC20, Ownable {
     address private _unlimitedAllowanceAddress;
     string private _name;
     string private _description;
+    uint256 private _price;
     Models.Levels private _level;
     Models.BuildingType private _buildingType;
     ResourceAmount[] private _inputResources;
@@ -36,6 +37,7 @@ contract Blueprint is ERC20, Ownable {
         string memory name,
         string memory symbol,
         string memory description,
+        uint256 price,
         address unlimitedAllowanceAddress,
         address initialOwner,
         ResourceAmount[] memory inputResources,
@@ -50,6 +52,7 @@ contract Blueprint is ERC20, Ownable {
         _buildingType = buildingType;
         _description = description;
         _name = name;
+        _price = price;
 
         for (uint256 i = 0; i < inputResources.length; i++) {
             _inputResources.push(inputResources[i]);
@@ -77,6 +80,10 @@ contract Blueprint is ERC20, Ownable {
     function burn(uint256 amount) public {
         require(msg.sender == _unlimitedAllowanceAddress, "Not allowed to burn");
         _burn(msg.sender, amount);
+    }
+
+    function getPrice()  public view returns(uint256){
+        return _price;
     }
 
     function isAllowedTerrainType(Models.TerrainType terrainType) public view returns (bool) {

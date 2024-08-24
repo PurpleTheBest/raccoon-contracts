@@ -11,11 +11,12 @@ contract Game {
         string name;
         uint256 x;
         uint256 y;
+        uint256 z;
+        uint256 elevation;
         Models.TerrainType terrainType;
         Models.BiomeType biomeType;
         address blueprint;
         address owner;
-        uint256 price;
     }
 
     struct Map {
@@ -27,20 +28,28 @@ contract Game {
     struct Cordinates{
         uint256 x;
         uint256 y;
+        uint256 z;
     }
 
     uint256 private _mapWidth;
     uint256 private _mapHeight;
-    Resource private _nativeCurrency;
+    uint256 private _mapLength;
+    Resource private _nativeResource;
+    Blueprint private _castleBlueprint;
     address private _owner;
     string private _mapName;
 
     mapping (address => Blueprint) private _blueprints;
     mapping (address => Resource) private _resources;
-    mapping(uint256 => mapping(uint256 => Tile)) private _tiles;
+    mapping(uint256 => mapping(uint256 => mapping(uint256 => Tile))) private _tiles;
     mapping(address => Cordinates[]) private _ownedTiles;
 
     modifier onlyOwner() {
+        require(msg.sender == _owner, "Not allowed");
+        _;
+    }
+
+     modifier ensureAllowedTerrainType() {
         require(msg.sender == _owner, "Not allowed");
         _;
     }
@@ -52,14 +61,18 @@ contract Game {
         _owner = msg.sender;
     }
 
-    function __setNativeCurrency__(address nativeCurrency) public onlyOwner {
-        _nativeCurrency = Resource(nativeCurrency);
+    function __setNativeResource__(address nativeResourceAddress) public onlyOwner {
+        _nativeResource = Resource(nativeResourceAddress);
+    }
+
+    function __setCastleBlueprint__(address castleBlueprintAddress) public onlyOwner {
+        _castleBlueprint = Blueprint(castleBlueprintAddress);
     }
 
     function __initializeTiles__(Tile[] memory tiles) public onlyOwner {
         for (uint256 i = 0; i < tiles.length; i++) {
             Tile memory tile = tiles[i];
-            _tiles[tile.x][tile.y] = tile;
+            _tiles[tile.x][tile.y][tile.z] = tile;
         }
     }
 
@@ -76,7 +89,7 @@ contract Game {
     }
 
     function __updateTile__(Tile memory tile) public onlyOwner {
-         _tiles[tile.x][tile.y] = tile;
+         _tiles[tile.x][tile.y][tile.z] = tile;
     }
 
     function getMap() public view returns (Map memory) {
@@ -85,10 +98,12 @@ contract Game {
 
         for (uint256 x = 0; x < _mapWidth; x++) {
             for (uint256 y = 0; y < _mapHeight; y++) {
-                Tile storage tile = _tiles[x][y];
-                if (tile.x == x && tile.y == y) {
-                    tilesArray[index] = tile;
-                    index++;
+                for (uint256 z = 0; y < _mapLength; z++) {
+                    Tile storage tile = _tiles[x][y][z];
+                    if (tile.x == x && tile.y == y && tile.z == z) {
+                        tilesArray[index] = tile;
+                        index++;
+                    }
                 }
             }
         }
@@ -107,42 +122,59 @@ contract Game {
         return currentMap;
     }
 
-     function buyGold() public payable {
-         Resource token = Resource(_nativeCurrency);
-         token.mint(msg.sender, (msg.value * 100000) / 1e18);
-     }
+    function buyGold() public payable {
+        _nativeResource.mint(msg.sender, (msg.value * 100000) / 1e18);
+    }
 
-    function buyTile(uint256 x, uint256 y, address blueprintAddress) public{
-         
-        require(_blueprints[blueprintAddress].getBlueprintDetails().buildingType != Models.BuildingType.None, "Invalid blueprint");
-
-        Tile memory tile = _tiles[x][y];
+    function setCastle(uint256 x, uint256 y, uint256 z) public{
+        Tile memory tile = _tiles[x][y][z];
         require(tile.terrainType != Models.TerrainType.None, "Tile not found");
         require(tile.owner != _owner, "Tile is already occupied");
 
-        _nativeCurrency.burn(tile.price);
+        require(_castleBlueprint.isAllowedTerrainType(tile.terrainType), "Invalid terrain type");
+
+        Cordinates[] memory ownedTiles = _ownedTiles[msg.sender];
+
+        require(ownedTiles.length == 0, "Unable to build castle");
+
+        _nativeResource.burn(_castleBlueprint.getPrice());
+    }
+
+    function occupyTile(uint256 x, uint256 y, uint256 z, address blueprintAddress) public{
+         
+        require(_blueprints[blueprintAddress].getBlueprintDetails().buildingType != Models.BuildingType.None, "Invalid blueprint");
+
+        Tile memory tile = _tiles[x][y][z];
+
+        require(_isTileDefined(tile), "Tile not found");
 
         Blueprint blueprint = Blueprint(blueprintAddress);
         require(blueprint.isAllowedTerrainType(tile.terrainType), "Invalid terrain type");
 
         Cordinates[] memory ownedTiles = _ownedTiles[msg.sender];
-
-        if(
-            ownedTiles.length != 0
-            && _tiles[x+1][y+1].owner != msg.sender 
-            && _tiles[x][y+1].owner != msg.sender 
-            && _tiles[x-1][y+1].owner != msg.sender 
-            && _tiles[x-1][y].owner != msg.sender 
-            && _tiles[x][y-1].owner != msg.sender 
-            && _tiles[x+1][y].owner != msg.sender){
-                revert("Unable to buy");
-        }
-
+        require(ownedTiles.length != 0, "Build a castle first");
+        require(_isTileFreeToOccupy(tile), "Tile is already occupied");
+        
         blueprint.burn(1);
 
         tile.owner = msg.sender;
         tile.blueprint = blueprintAddress;
 
-        _ownedTiles[msg.sender].push(Cordinates({x:x, y:y}));
+        _ownedTiles[msg.sender].push(Cordinates({x:x, y:y, z:z}));
+    }
+
+    function _isTileDefined(Tile memory tile) private pure returns (bool){
+        return tile.terrainType != Models.TerrainType.None;
+    }
+
+    function _isTileFreeToOccupy(Tile memory tile) private view returns (bool){
+        return  tile.owner != _owner 
+            && tile.blueprint == address(0)
+            && _tiles[tile.x+1][tile.y+1][tile.z].owner != msg.sender 
+            && _tiles[tile.x][tile.y+1][tile.z].owner != msg.sender 
+            && _tiles[tile.x-1][tile.y+1][tile.z].owner != msg.sender 
+            && _tiles[tile.x-1][tile.y][tile.z].owner != msg.sender 
+            && _tiles[tile.x][tile.y-1][tile.z].owner != msg.sender 
+            && _tiles[tile.x+1][tile.y][tile.z].owner != msg.sender;
     }
 } 

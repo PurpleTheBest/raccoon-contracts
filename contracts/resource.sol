@@ -10,7 +10,8 @@ contract Resource is ERC20, Ownable {
     using SafeERC20 for IERC20;
 
     address private immutable _unlimitedAllowanceAddress;
-    Models.Levels _level;
+    Models.Levels private _level;
+    uint256 private _price;
 
     constructor(
         string memory name,
