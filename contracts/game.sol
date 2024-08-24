@@ -3,6 +3,7 @@ pragma solidity 0.8.23;
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import './models.sol';
 import './blueprint.sol';
+import './resource.sol';
 
 contract Game {
     
@@ -98,16 +99,21 @@ contract Game {
         return currentMap;
     }
 
+     function buyGold() public payable {
+         Resource token = Resource(_nativeCurrency);
+         token.mint(msg.sender, (msg.value * 100000) / 1e18);
+     }
+
     function buyTile(uint256 x, uint256 y, address blueprintAddress) public{
 
         require(_blueprints[blueprintAddress] == blueprintAddress, "Invalid blueprint");
 
-        Blueprint blueprint = Blueprint(blueprintAddress);
         Tile memory tile = _tiles[x][y];
-
-        require(blueprint.getAllowedTerrainType(tile.terrainType) == tile.terrainType, "Invalid terrain type");
         require(tile.terrainType != Models.TerrainType.None, "Tile not found");
-        require(tile.owner == address(0), "Tile is already occupied");
+        require(tile.owner != _owner, "Tile is already occupied");
+
+        Blueprint blueprint = Blueprint(blueprintAddress);
+        require(blueprint.getAllowedTerrainType(tile.terrainType) == tile.terrainType, "Invalid terrain type");
 
         Cordinates[] memory ownedTiles = _ownedTiles[msg.sender];
 
