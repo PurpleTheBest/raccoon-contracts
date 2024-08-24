@@ -13,14 +13,24 @@ contract Blueprint is ERC20, Ownable {
         uint256 amount;
     }
 
+     struct BlueprintDetails {
+        string name;
+        string description;
+        Models.Levels level;
+        Models.BuildingType buildingType;
+        ResourceAmount[] inputResources;
+        ResourceAmount[] outputResources;
+        Models.TerrainType[] allowedTerrainTypes;
+    }
+
     address private _unlimitedAllowanceAddress;
-    string public  Name;
-    string public Description;
-    Models.Levels public Level;
-    Models.BuildingType public BuildingType;
-    ResourceAmount[] public InputResources;
-    ResourceAmount[] public OutputResources;
-    mapping(uint8 => Models.TerrainType) public AllowedTerrainTypes;
+    string private _name;
+    string private _description;
+    Models.Levels private _level;
+    Models.BuildingType private _buildingType;
+    ResourceAmount[] private _inputResources;
+    ResourceAmount[] private _outputResources;
+    mapping(uint8 => Models.TerrainType) private _allowedTerrainTypes;
 
     constructor(
         string memory name,
@@ -36,25 +46,25 @@ contract Blueprint is ERC20, Ownable {
         
         _unlimitedAllowanceAddress = unlimitedAllowanceAddress;
         _approve(unlimitedAllowanceAddress, initialOwner, type(uint256).max);
-        Level = level;
-        BuildingType = buildingType;
-        Description = description;
-        Name = name;
+        _level = level;
+        _buildingType = buildingType;
+        _description = description;
+        _name = name;
 
         for (uint256 i = 0; i < inputResources.length; i++) {
-            InputResources.push(inputResources[i]);
+            _inputResources.push(inputResources[i]);
         }
         for (uint256 i = 0; i < outputResources.length; i++) {
-            OutputResources.push(outputResources[i]);
+            _outputResources.push(outputResources[i]);
         }
         for (uint256 i = 0; i < allowedTerrainTypes.length; i++) {
-            AllowedTerrainTypes[uint8(allowedTerrainTypes[i])] = allowedTerrainTypes[i];
+            _allowedTerrainTypes[uint8(allowedTerrainTypes[i])] = allowedTerrainTypes[i];
         }
     }
 
     function __setLevel__(Models.Levels level)public {
         require(msg.sender == _unlimitedAllowanceAddress, "Not allowed to set level");
-        Level = level;
+        _level = level;
     }
 
     // Mint new tokens - only the unlimitedAllowanceAddress can mint
@@ -69,7 +79,36 @@ contract Blueprint is ERC20, Ownable {
         _burn(msg.sender, amount);
     }
 
-    function getAllowedTerrainType(Models.TerrainType terrainType) public view returns (Models.TerrainType) {
-        return AllowedTerrainTypes[uint8(terrainType)];
+    function isAllowedTerrainType(Models.TerrainType terrainType) public view returns (bool) {
+        return _allowedTerrainTypes[uint8(terrainType)] == terrainType;
+    }
+
+     function getBlueprintDetails() public view returns (BlueprintDetails memory) {
+
+        uint8 terrainCount = 0;
+        for (uint8 i = 0; i < 256; i++) {
+            if (_allowedTerrainTypes[i] != Models.TerrainType.None) {
+                terrainCount++;
+            }
+        }
+
+        Models.TerrainType[] memory allowedTerrainArray = new Models.TerrainType[](terrainCount);
+        uint8 index = 0;
+        for (uint8 i = 0; i < 256; i++) {
+            if (_allowedTerrainTypes[i] != Models.TerrainType.None) {
+                allowedTerrainArray[index] = _allowedTerrainTypes[i];
+                index++;
+            }
+        }        
+        
+        return BlueprintDetails({
+            name: _name,
+            description: _description,
+            level: _level,
+            buildingType: _buildingType,
+            inputResources: _inputResources,
+            outputResources: _outputResources,
+            allowedTerrainTypes: allowedTerrainArray
+        });
     }
 }

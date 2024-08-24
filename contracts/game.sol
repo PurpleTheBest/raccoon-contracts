@@ -15,6 +15,7 @@ contract Game {
         Models.BiomeType biomeType;
         address blueprint;
         address owner;
+        uint256 price;
     }
 
     struct Map {
@@ -30,11 +31,12 @@ contract Game {
 
     uint256 private _mapWidth;
     uint256 private _mapHeight;
-    address private _nativeCurrency;
+    Resource private _nativeCurrency;
     address private _owner;
     string private _mapName;
 
-    mapping (address => address) private _blueprints;
+    mapping (address => Blueprint) private _blueprints;
+    mapping (address => Resource) private _resources;
     mapping(uint256 => mapping(uint256 => Tile)) private _tiles;
     mapping(address => Cordinates[]) private _ownedTiles;
 
@@ -51,7 +53,7 @@ contract Game {
     }
 
     function __setNativeCurrency__(address nativeCurrency) public onlyOwner {
-        _nativeCurrency = nativeCurrency;
+        _nativeCurrency = Resource(nativeCurrency);
     }
 
     function __initializeTiles__(Tile[] memory tiles) public onlyOwner {
@@ -63,7 +65,13 @@ contract Game {
 
     function __setBlueprints__(address[] memory blueprints) public onlyOwner {
         for(uint256 i =0; i< blueprints.length; i++){
-            _blueprints[blueprints[i]] = blueprints[i];
+            _blueprints[blueprints[i]] = Blueprint(blueprints[i]);
+        }
+    }
+
+    function __setResources__(address[] memory resources) public onlyOwner {
+        for(uint256 i =0; i< resources.length; i++){
+            _resources[resources[i]] = Resource(resources[i]);
         }
     }
 
@@ -105,15 +113,17 @@ contract Game {
      }
 
     function buyTile(uint256 x, uint256 y, address blueprintAddress) public{
-
-        require(_blueprints[blueprintAddress] == blueprintAddress, "Invalid blueprint");
+         
+        require(_blueprints[blueprintAddress].getBlueprintDetails().buildingType != Models.BuildingType.None, "Invalid blueprint");
 
         Tile memory tile = _tiles[x][y];
         require(tile.terrainType != Models.TerrainType.None, "Tile not found");
         require(tile.owner != _owner, "Tile is already occupied");
 
+        _nativeCurrency.burn(tile.price);
+
         Blueprint blueprint = Blueprint(blueprintAddress);
-        require(blueprint.getAllowedTerrainType(tile.terrainType) == tile.terrainType, "Invalid terrain type");
+        require(blueprint.isAllowedTerrainType(tile.terrainType), "Invalid terrain type");
 
         Cordinates[] memory ownedTiles = _ownedTiles[msg.sender];
 
@@ -133,6 +143,6 @@ contract Game {
         tile.owner = msg.sender;
         tile.blueprint = blueprintAddress;
 
-        _ownedTiles[msg.sender].push(Cordinates({x:x, y:y})); // check if array require init
+        _ownedTiles[msg.sender].push(Cordinates({x:x, y:y}));
     }
 } 
