@@ -10,7 +10,6 @@ contract Game {
         string name;
         uint256 x;
         uint256 y;
-        uint256 z;
         uint256 elevation;
         Models.TerrainType terrainType;
         Models.BiomeType biomeType;
@@ -21,7 +20,6 @@ contract Game {
     struct Cordinates{
         uint256 x;
         uint256 y;
-        uint256 z;
     }
 
     uint256 private _mapWidth;
@@ -68,8 +66,8 @@ contract Game {
     function __initializeTiles__(Tile[] memory tiles) public onlyOwner {
         for (uint256 i = 0; i < tiles.length; i++) {
             Tile memory tile = tiles[i];
-            _tiles[encodeCoordinates(tile.x, tile.y, tile.z)] = tile;
-            _tilesCoordinates.push(encodeCoordinates(tile.x, tile.y, tile.z));
+            _tiles[encodeCoordinates(tile.x, tile.y)] = tile;
+            _tilesCoordinates.push(encodeCoordinates(tile.x, tile.y));
         }
     }
 
@@ -86,7 +84,7 @@ contract Game {
     }
 
     function __updateTile__(Tile memory tile) public onlyOwner {
-         _tiles[encodeCoordinates(tile.x, tile.y, tile.z)] = tile;
+         _tiles[encodeCoordinates(tile.x, tile.y)] = tile;
     }
 
     function getResourceContracts() public pure returns(address[] memory){
@@ -107,8 +105,8 @@ contract Game {
         _nativeResource.mint(msg.sender, (msg.value * 100000) / 1e18);
     }
 
-    function setCastle(uint256 x, uint256 y, uint256 z) public{
-        Tile memory tile = _tiles[encodeCoordinates(x, y, z)];
+    function setCastle(uint256 x, uint256 y) public{
+        Tile memory tile = _tiles[encodeCoordinates(x, y)];
         require(_isTileDefined(tile), "Tile not found");
         require(tile.owner != _owner, "Tile is already occupied");
 
@@ -121,12 +119,12 @@ contract Game {
         _nativeResource.burn(_castleBlueprint.getPrice());
     }
 
-    function occupyTile(uint256 x, uint256 y, uint256 z, address blueprintAddress) public{
+    function occupyTile(uint256 x, uint256 y, address blueprintAddress) public{
          
         Blueprint blueprint = _blueprints[blueprintAddress];
         require(_isBlueprintDefined(blueprint), "Invalid blueprint");
 
-        uint256 encodedCoordinates = encodeCoordinates(x, y, z);
+        uint256 encodedCoordinates = encodeCoordinates(x, y);
         Tile storage tile = _tiles[encodedCoordinates];
         require(_isTileDefined(tile), "Tile not found");
 
@@ -141,7 +139,7 @@ contract Game {
         tile.owner = msg.sender;
         tile.blueprint = blueprintAddress;
 
-        _ownedTiles[msg.sender].push(Cordinates({x:x, y:y, z:z}));
+        _ownedTiles[msg.sender].push(Cordinates({x:x, y:y}));
     }
 
     function _isTileDefined(Tile memory tile) private pure returns (bool){
@@ -153,30 +151,37 @@ contract Game {
     }
 
     function _isTileFreeToOccupy(Tile memory tile) private view returns (bool){
+        require(tile.owner != _owner,"You are not allowed");
+        require(tile.blueprint == address(0),"Already occupied");
         uint256 x = tile.x;
         uint256 y = tile.y;
-        uint256 z = tile.z;
-        return  tile.owner != _owner 
-            && tile.blueprint == address(0)
-            && _tiles[encodeCoordinates(x+1, y+1, z)].owner != msg.sender 
-            && _tiles[encodeCoordinates(x, y+1, z)].owner != msg.sender 
-            && _tiles[encodeCoordinates(x-1, y+1, z)].owner != msg.sender 
-            && _tiles[encodeCoordinates(x-1, y, z)].owner != msg.sender 
-            && _tiles[encodeCoordinates(x, y-1, z)].owner != msg.sender 
-            && _tiles[encodeCoordinates(x+1, y, z)].owner != msg.sender;
+        if(y % 2 == 0){
+            return  _tiles[encodeCoordinates(x+1, y)].owner != msg.sender 
+                    && _tiles[encodeCoordinates(x, y-1)].owner != msg.sender 
+                    && _tiles[encodeCoordinates(x-1, y-1)].owner != msg.sender 
+                    && _tiles[encodeCoordinates(x-1, y)].owner != msg.sender 
+                    && _tiles[encodeCoordinates(x-1, y+1)].owner != msg.sender 
+                    && _tiles[encodeCoordinates(x, y+1)].owner != msg.sender;
+        }
+        return  _tiles[encodeCoordinates(x+1, y)].owner != msg.sender 
+                && _tiles[encodeCoordinates(x+1, y-1)].owner != msg.sender 
+                && _tiles[encodeCoordinates(x, y-1)].owner != msg.sender 
+                && _tiles[encodeCoordinates(x-1, y)].owner != msg.sender 
+                && _tiles[encodeCoordinates(x, y+1)].owner != msg.sender 
+                && _tiles[encodeCoordinates(x+1, y+1)].owner != msg.sender;
     }
 
 
     // functions for encoding  (x,y,z) coordinates to uint256, and decoding 
-    function encodeCoordinates(uint256 x, uint256 y, uint256 z) private pure returns (uint256) {
-        require(x < 2**85 && y < 2**85 && z < 2**85, "Coordinates out of bounds");
-        return (x << 170) | (y << 85) | z;
+    function encodeCoordinates(uint256 x, uint256 y) private pure returns (uint256) {
+        require(x < 2**128 && y < 2**128, "Coordinates out of bounds");
+        return (x << 128) | y;
     }
 
-    function decodeCoordinates(uint256 encoded) private pure returns (uint256 x, uint256 y, uint256 z) {
-    z = encoded & ((1 << 85) - 1);
-    y = (encoded >> 85) & ((1 << 85) - 1);
-    x = (encoded >> 170) & ((1 << 85) - 1);
-}
+    function decodeCoordinates(uint256 encoded) private pure returns (uint256 x, uint256 y) {
+        y = encoded & ((1 << 128) - 1);
+        x = (encoded >> 128) & ((1 << 128) - 1);
+    }
+
 
 } 
