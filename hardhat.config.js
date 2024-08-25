@@ -44,12 +44,12 @@ module.exports = {
   },
   etherscan: {
     apiKey: {
+      sepolia: "1ADM1WUWWBP9AX8HIC1ZXCYYEAGKIYSU27",
       immutableTestnet: "pk_imapik-test-$JSr2xVyP--QDkeRDm@t",
       optimismSepolia: "UM3DM9U5BE55IYGI656ET7VWI5PZJEHIS3",
       lineaSepolia: "KRPGHKNVEKJVSA3NG8XGMAAS3ZQIZYFKNV",
       taikoHekla: "XTMX6XTKPD8VCWD58AEPEKYTQB6QW5W1T8",
       arbitrumSepolia: "J3J5B7TVWIDGV5236BHRGAUD9YJV5T33AH",
-      sepolia: "Q7JD6R5A6S8B3KXIZFS5NBP13MJI9C74YH",
     },
     customChains: [
       {

@@ -10,19 +10,17 @@ contract Resource is ERC20, Ownable {
     using SafeERC20 for IERC20;
 
     address private immutable _unlimitedAllowanceAddress;
-    Models.Levels private _level;
     uint256 private _price;
 
     constructor(
         string memory name,
         string memory symbol,
-        address unlimitedAllowanceAddress,
-        Models.Levels level
+        string memory description,
+        address unlimitedAllowanceAddress
     ) ERC20(name, symbol) Ownable(_unlimitedAllowanceAddress) {
         require(_unlimitedAllowanceAddress != address(0), "Invalid address");
         unlimitedAllowanceAddress = _unlimitedAllowanceAddress;
         _approve(address(this), unlimitedAllowanceAddress, type(uint256).max);
-        _level = level;
     }
 
     function decimals() public pure override returns (uint8) {
