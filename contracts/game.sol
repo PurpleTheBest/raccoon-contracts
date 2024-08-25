@@ -6,7 +6,6 @@ import './blueprint.sol';
 import './resource.sol';
 
 contract Game {
-    
     struct Tile {
         string name;
         uint256 x;
@@ -17,13 +16,6 @@ contract Game {
         Models.BiomeType biomeType;
         address blueprint;
         address owner;
-    }
-
-    struct Map {
-        uint256 height;
-        uint256 width;
-        uint256 length;
-        Tile[] tiles;
     }
 
     struct Cordinates{
@@ -43,7 +35,8 @@ contract Game {
 
     mapping (address => Blueprint) private _blueprints;
     mapping (address => Resource) private _resources;
-    mapping(uint256 => mapping(uint256 => mapping(uint256 => Tile))) private _tiles;
+    mapping(uint256 => Tile) private _tiles;
+    uint256[] private _tilesCoordinates;
     mapping(address => Cordinates[]) private _ownedTiles;
 
     modifier onlyOwner() {
@@ -75,7 +68,8 @@ contract Game {
     function __initializeTiles__(Tile[] memory tiles) public onlyOwner {
         for (uint256 i = 0; i < tiles.length; i++) {
             Tile memory tile = tiles[i];
-            _tiles[tile.x][tile.y][tile.z] = tile;
+            _tiles[encodeCoordinates(tile.x, tile.y, tile.z)] = tile;
+            _tilesCoordinates.push(encodeCoordinates(tile.x, tile.y, tile.z));
         }
     }
 
@@ -92,42 +86,21 @@ contract Game {
     }
 
     function __updateTile__(Tile memory tile) public onlyOwner {
-         _tiles[tile.x][tile.y][tile.z] = tile;
+         _tiles[encodeCoordinates(tile.x, tile.y, tile.z)] = tile;
     }
 
     function getResourceContracts() public pure returns(address[] memory){
 
     }
 
-    function getMap() public view returns (Map memory) {
-        Tile[] memory tilesArray = new Tile[](_mapWidth * _mapHeight);
-        uint256 index = 0;
+    function getMap() public view returns (uint256 width,uint256 height,uint256 length,string memory name,Tile[] memory) {
+        Tile[] memory tiles = new Tile[](_tilesCoordinates.length);
 
-        for (uint256 x = 0; x < _mapWidth; x++) {
-            for (uint256 y = 0; y < _mapHeight; y++) {
-                for (uint256 z = 0; y < _mapLength; z++) {
-                    Tile storage tile = _tiles[x][y][z];
-                    if (tile.x == x && tile.y == y && tile.z == z) {
-                        tilesArray[index] = tile;
-                        index++;
-                    }
-                }
-            }
+        for (uint256 i = 0; i < _tilesCoordinates.length; i++) {
+            tiles[i] = _tiles[_tilesCoordinates[i]];
         }
 
-        Tile[] memory resultArray = new Tile[](index);
-        for (uint256 i = 0; i < index; i++) {
-            resultArray[i] = tilesArray[i];
-        }
-
-        Map memory currentMap = Map({
-            height: _mapHeight,
-            width: _mapWidth,
-            length: _mapLength,
-            tiles: resultArray
-        });
-
-        return currentMap;
+        return (_mapWidth,_mapHeight,_mapLength,_mapName,tiles);
     }
 
     function buyGold() public payable {
@@ -135,7 +108,7 @@ contract Game {
     }
 
     function setCastle(uint256 x, uint256 y, uint256 z) public{
-        Tile memory tile = _tiles[x][y][z];
+        Tile memory tile = _tiles[encodeCoordinates(x, y, z)];
         require(_isTileDefined(tile), "Tile not found");
         require(tile.owner != _owner, "Tile is already occupied");
 
@@ -153,7 +126,8 @@ contract Game {
         Blueprint blueprint = _blueprints[blueprintAddress];
         require(_isBlueprintDefined(blueprint), "Invalid blueprint");
 
-        Tile memory tile = _tiles[x][y][z];
+        uint256 encodedCoordinates = encodeCoordinates(x, y, z);
+        Tile storage tile = _tiles[encodedCoordinates];
         require(_isTileDefined(tile), "Tile not found");
 
         require(blueprint.isAllowedTerrainType(tile.terrainType), "Invalid terrain type");
@@ -179,13 +153,30 @@ contract Game {
     }
 
     function _isTileFreeToOccupy(Tile memory tile) private view returns (bool){
+        uint256 x = tile.x;
+        uint256 y = tile.y;
+        uint256 z = tile.z;
         return  tile.owner != _owner 
             && tile.blueprint == address(0)
-            && _tiles[tile.x+1][tile.y+1][tile.z].owner != msg.sender 
-            && _tiles[tile.x][tile.y+1][tile.z].owner != msg.sender 
-            && _tiles[tile.x-1][tile.y+1][tile.z].owner != msg.sender 
-            && _tiles[tile.x-1][tile.y][tile.z].owner != msg.sender 
-            && _tiles[tile.x][tile.y-1][tile.z].owner != msg.sender 
-            && _tiles[tile.x+1][tile.y][tile.z].owner != msg.sender;
+            && _tiles[encodeCoordinates(x+1, y+1, z)].owner != msg.sender 
+            && _tiles[encodeCoordinates(x, y+1, z)].owner != msg.sender 
+            && _tiles[encodeCoordinates(x-1, y+1, z)].owner != msg.sender 
+            && _tiles[encodeCoordinates(x-1, y, z)].owner != msg.sender 
+            && _tiles[encodeCoordinates(x, y-1, z)].owner != msg.sender 
+            && _tiles[encodeCoordinates(x+1, y, z)].owner != msg.sender;
     }
+
+
+    // functions for encoding  (x,y,z) coordinates to uint256, and decoding 
+    function encodeCoordinates(uint256 x, uint256 y, uint256 z) private pure returns (uint256) {
+        require(x < 2**85 && y < 2**85 && z < 2**85, "Coordinates out of bounds");
+        return (x << 170) | (y << 85) | z;
+    }
+
+    function decodeCoordinates(uint256 encoded) private pure returns (uint256 x, uint256 y, uint256 z) {
+    z = encoded & ((1 << 85) - 1);
+    y = (encoded >> 85) & ((1 << 85) - 1);
+    x = (encoded >> 170) & ((1 << 85) - 1);
+}
+
 } 
