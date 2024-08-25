@@ -15,30 +15,30 @@ module.exports = {
   networks: {
     arbitrumSepolia: {
       url: 'https://arbitrum-sepolia.drpc.org',
-      accounts: [''],
+      accounts: [process.env.PRIVATE_KEY],
     },
     sepolia: {
       url: `https://sepolia.infura.io/v3/775081a490784e709d3457ed0e413b21`,
-      accounts: [''],
+      accounts: [process.env.PRIVATE_KEY],
     },
     lineaSepolia: {
       url: "https://rpc.sepolia.linea.build",
-      accounts: [''],
+      accounts: [process.env.PRIVATE_KEY],
       chainId: 59141,
     },
     optimismSepolia: {
       url: "https://sepolia.optimism.io",
-      accounts: [''],
+      accounts: [process.env.PRIVATE_KEY],
       chainId: 11155420,
     },
     taikoHekla: {
       url: "https://rpc.hekla.taiko.xyz.",
-      accounts: [''],
+      accounts: [process.env.PRIVATE_KEY],
       chainId: 167009,
     },
     immutableTestnet: {
       url: "https://rpc.testnet.immutable.com",
-      accounts: [''],
+      accounts: [process.env.PRIVATE_KEY],
       chainId: 13473,
     },
   },

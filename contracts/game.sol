@@ -7,7 +7,7 @@ import './resource.sol';
 
 contract Game {
     
-     struct Tile {
+    struct Tile {
         string name;
         uint256 x;
         uint256 y;
@@ -95,6 +95,10 @@ contract Game {
          _tiles[tile.x][tile.y][tile.z] = tile;
     }
 
+    function getResourceContracts() public pure returns(address[] memory){
+
+    }
+
     function getMap() public view returns (Map memory) {
         Tile[] memory tilesArray = new Tile[](_mapWidth * _mapHeight);
         uint256 index = 0;
@@ -132,7 +136,7 @@ contract Game {
 
     function setCastle(uint256 x, uint256 y, uint256 z) public{
         Tile memory tile = _tiles[x][y][z];
-        require(tile.terrainType != Models.TerrainType.None, "Tile not found");
+        require(_isTileDefined(tile), "Tile not found");
         require(tile.owner != _owner, "Tile is already occupied");
 
         require(_castleBlueprint.isAllowedTerrainType(tile.terrainType), "Invalid terrain type");
