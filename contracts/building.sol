@@ -14,7 +14,7 @@ contract Building is Resource {
         uint256 amount;
     }
 
-     struct BuildingDetails {
+    struct BuildingDetails {
         string name;
         string description;
         Models.BuildingType buildingType;
@@ -23,8 +23,6 @@ contract Building is Resource {
         Models.TerrainType[] allowedTerrainTypes;
     }
 
-    string private _name;
-    string private _description;
     Models.BuildingType private _buildingType;
     ResourceAmount[] private _inputResources;
     ResourceAmount[] private _outputResources;
@@ -41,8 +39,6 @@ contract Building is Resource {
         Models.BuildingType buildingType) Resource(name,symbol,description,owner) {
         _approve(address(this), owner, type(uint256).max);
         _buildingType = buildingType;
-        _description = description;
-        _name = name;
 
         for (uint256 i = 0; i < inputResources.length; i++) {
             _inputResources.push(inputResources[i]);
