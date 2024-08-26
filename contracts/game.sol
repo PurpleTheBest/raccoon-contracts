@@ -69,8 +69,8 @@ contract Game {
     }
 
    function __initialize__() public onlyOwner {
-        _gold = new Resource("Gold", "GLD", "it is native currency", address(this));
-        emit contractDeployed("Gold contract deployed to address: ",address(_gold));
+        _gold = new Resource("Gold", "GLD", "", address(this));
+        //emit contractDeployed("Gold contract deployed to address: ",address(_gold));
 
         Models.TerrainType[] memory castleAllowedTerrainTypes = new Models.TerrainType[](2);
         castleAllowedTerrainTypes[0] = Models.TerrainType.Flat;
@@ -86,7 +86,7 @@ contract Game {
             castleAllowedTerrainTypes,
             Models.BuildingType.Castle
         );
-        emit contractDeployed("Castle contract deployed to address: ", address(_castle));
+        //emit contractDeployed("Castle contract deployed to address: ", address(_castle));
     }
 
     function __addTiles__(Tile[] memory tiles) public onlyOwner {
@@ -107,14 +107,14 @@ contract Game {
             Models.BuildingType buildingType) public onlyOwner {
         
         Building building = new Building(name, symbol, description, address(this), inputResources, outputResources, terrainTypes, buildingType);
-        emit contractDeployed("Building contract deployed to address: ",address(building));
+        //emit contractDeployed("Building contract deployed to address: ",address(building));
         _buildings[address(building)] = building;
         _buildingAddresses.push(address(building));
     }
 
     function __addResource__(string memory name, string memory symbol, string memory description) public onlyOwner {
         Resource resource = new Resource(name, symbol, description, address(this));
-        emit contractDeployed(" Resource contract deployed to address: ",address(resource));
+        //emit contractDeployed(" Resource contract deployed to address: ",address(resource));
         _resources[address(resource)] = resource;
         _resourceAddresses.push(address(resource));
     }
@@ -159,35 +159,14 @@ contract Game {
 
     function placeCastle(uint256 x, uint256 y) public{
         Cordinates[] memory ownedTiles = _ownedTiles[msg.sender];
-        require(ownedTiles.length == 0, "Unable to build castle");
+        require(ownedTiles.length == 0, "");
 
         Tile memory tile = _tiles[_encodeCoordinates(x, y)];
-        require(_isTileDefined(tile), "Tile not found");
-        require(!_isTileOccupied(tile), "Tile is already occupied");
-        require(_castle.isAllowedTerrainType(tile.terrainType), "Invalid terrain type");
+        require(_isTileDefined(tile), "");
+        require(!_isTileOccupied(tile), "");
+        require(_castle.isAllowedTerrainType(tile.terrainType), "");
 
         _gold.burn(10000);
-    }
-
-    function placeBuilding(uint256 x, uint256 y, address buildingAddress) public{
-        Cordinates[] memory ownedTiles = _ownedTiles[msg.sender];
-        require(ownedTiles.length != 0, "Build a castle first");
-
-        Building building = _buildings[buildingAddress];
-        require(_isBuildingDefined(building), "Invalid building");
-
-        uint256 encodedCoordinates = _encodeCoordinates(x, y);
-        Tile storage tile = _tiles[encodedCoordinates];
-        require(_isTileDefined(tile), "Tile not found");
-        require(_isTileFreeToOccupy(tile), "Tile is already occupied");
-        require(building.isAllowedTerrainType(tile.terrainType), "Invalid terrain type");
-        
-        building.burn(1);
-
-        tile.owner = msg.sender;
-        tile.building = buildingAddress;
-
-        _ownedTiles[msg.sender].push(Cordinates({x:x, y:y}));
     }
 
     function _isTileDefined(Tile memory tile) private pure returns (bool){
@@ -203,7 +182,7 @@ contract Game {
     }
 
     function _isTileFreeToOccupy(Tile memory tile) private view returns (bool){
-        require(!_isTileOccupied(tile), "Tile is already occupied");
+        require(!_isTileOccupied(tile), "");
         
         uint256 x = tile.x;
         uint256 y = tile.y;
@@ -225,7 +204,7 @@ contract Game {
 
     // functions for encoding  (x,y,z) coordinates to uint256, and decoding 
     function _encodeCoordinates(uint256 x, uint256 y) private pure returns (uint256) {
-        require(x < 2**128 && y < 2**128, "Coordinates out of bounds");
+        require(x < 2**128 && y < 2**128, "");
         return (x << 128) | y;
     }
 
