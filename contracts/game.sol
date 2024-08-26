@@ -163,26 +163,24 @@ contract Game {
 
         Tile memory tile = _tiles[_encodeCoordinates(x, y)];
         require(_isTileDefined(tile), "Tile not found");
-        require(tile.owner != _owner, "Tile is already occupied");
+        require(!_isTileOccupied(tile), "Tile is already occupied");
         require(_castle.isAllowedTerrainType(tile.terrainType), "Invalid terrain type");
 
         _gold.burn(10000);
     }
 
     function placeBuilding(uint256 x, uint256 y, address buildingAddress) public{
-         
+        Cordinates[] memory ownedTiles = _ownedTiles[msg.sender];
+        require(ownedTiles.length != 0, "Build a castle first");
+
         Building building = _buildings[buildingAddress];
         require(_isBuildingDefined(building), "Invalid building");
 
         uint256 encodedCoordinates = _encodeCoordinates(x, y);
         Tile storage tile = _tiles[encodedCoordinates];
         require(_isTileDefined(tile), "Tile not found");
-
-        require(building.isAllowedTerrainType(tile.terrainType), "Invalid terrain type");
-
-        Cordinates[] memory ownedTiles = _ownedTiles[msg.sender];
-        require(ownedTiles.length != 0, "Build a castle first");
         require(_isTileFreeToOccupy(tile), "Tile is already occupied");
+        require(building.isAllowedTerrainType(tile.terrainType), "Invalid terrain type");
         
         building.burn(1);
 
@@ -205,8 +203,8 @@ contract Game {
     }
 
     function _isTileFreeToOccupy(Tile memory tile) private view returns (bool){
-        require(tile.owner != _owner,"You are not allowed");
-        require(tile.building == address(0),"Already occupied");
+        require(!_isTileOccupied(tile), "Tile is already occupied");
+        
         uint256 x = tile.x;
         uint256 y = tile.y;
         if(y % 2 == 0){
