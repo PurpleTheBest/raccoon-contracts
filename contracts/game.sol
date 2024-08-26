@@ -43,6 +43,8 @@ contract Game {
     Resource private _nativeResource;
     Blueprint private _castleBlueprint;
 
+    address[] private _blueprintAddresses;
+    address[] private _resourceAddresses;
     mapping (address => Blueprint) private _blueprints;
     mapping (address => Resource) private _resources;
     mapping(uint256 => Tile) private _tiles;
@@ -67,28 +69,28 @@ contract Game {
         _owner = msg.sender;
     }
 
-   function __setNativeResource__() public onlyOwner {
-    _nativeResource = new Resource("Gold", "GLD", "it is native currency", address(this));
-    emit contractDeployed("Native currency contract deployed to address: ",address(_nativeResource));
+   function __initialize__() public onlyOwner {
+        _nativeResource = new Resource("Gold", "GLD", "it is native currency", address(this));
+        emit contractDeployed("Native currency contract deployed to address: ",address(_nativeResource));
 
-    Models.TerrainType[] memory castleAllowedTerrainTypes = new Models.TerrainType[](2);
-    castleAllowedTerrainTypes[0] = Models.TerrainType.Flat;
-    castleAllowedTerrainTypes[1] = Models.TerrainType.Forest;
+        Models.TerrainType[] memory castleAllowedTerrainTypes = new Models.TerrainType[](2);
+        castleAllowedTerrainTypes[0] = Models.TerrainType.Flat;
+        castleAllowedTerrainTypes[1] = Models.TerrainType.Forest;
 
-    _castleBlueprint = new Blueprint(
-        "Castle",
-        "CSTL",
-        "Start",
-        address(this),
-        new Blueprint.ResourceAmount[](0), 
-        new Blueprint.ResourceAmount[](0), 
-        castleAllowedTerrainTypes,
-        Models.BuildingType.Castle
-    );
-    emit contractDeployed("Castle contract deployed to address: ", address(_castleBlueprint));
-}
+        _castleBlueprint = new Blueprint(
+            "Castle",
+            "CSTL",
+            "Start",
+            address(this),
+            new Blueprint.ResourceAmount[](0), 
+            new Blueprint.ResourceAmount[](0), 
+            castleAllowedTerrainTypes,
+            Models.BuildingType.Castle
+        );
+        emit contractDeployed("Castle contract deployed to address: ", address(_castleBlueprint));
+    }
 
-    function __initializeTiles__(Tile[] memory tiles) public onlyOwner {
+    function __addTiles__(Tile[] memory tiles) public onlyOwner {
         for (uint256 i = 0; i < tiles.length; i++) {
             Tile memory tile = tiles[i];
             _tiles[__encodeCoordinates__(tile.x, tile.y)] = tile;
@@ -96,24 +98,38 @@ contract Game {
         }
     }
 
-    function __setBlueprints__(address[] memory blueprints) public onlyOwner {
-        for(uint256 i =0; i< blueprints.length; i++){
-            _blueprints[blueprints[i]] = Blueprint(blueprints[i]);
-        }
+    function __addBlueprint__(
+            string memory name,
+            string memory symbol,
+            string memory description,
+            Blueprint.ResourceAmount[] memory inputResources,
+            Blueprint.ResourceAmount[] memory outputResources,
+            Models.TerrainType[] memory terrainTypes,
+            Models.BuildingType buildingType) public onlyOwner {
+        
+        Blueprint blueprint = new Blueprint(name, symbol, description, address(this), inputResources, outputResources, terrainTypes, buildingType);
+        emit contractDeployed("Blueprint contract deployed to address: ",address(blueprint));
+        _blueprints[address(blueprint)] = blueprint;
+        _blueprintAddresses.push(address(blueprint));
     }
 
-    function __setResources__(address[] memory resources) public onlyOwner {
-        for(uint256 i =0; i< resources.length; i++){
-            _resources[resources[i]] = Resource(resources[i]);
-        }
+    function __addResource__(string memory name, string memory symbol, string memory description) public onlyOwner {
+        Resource resource = new Resource(name, symbol, description, address(this));
+        emit contractDeployed(" Resource contract deployed to address: ",address(resource));
+        _resources[address(resource)] = resource;
+        _resourceAddresses.push(address(resource));
     }
 
     function __updateTile__(Tile memory tile) public onlyOwner {
          _tiles[__encodeCoordinates__(tile.x, tile.y)] = tile;
     }
 
-    function getResourceContracts() public pure returns(address[] memory){
+    function getResourceContracts() public view returns(address[] memory){
+        return _resourceAddresses;
+    }
 
+     function getBlueprintsContracts() public view returns(address[] memory){
+        return _blueprintAddresses;
     }
 
     function getMap() public view returns (uint256 width,uint256 height,string memory name,Tile[] memory) {
@@ -210,6 +226,4 @@ contract Game {
         y = encoded & ((1 << 128) - 1);
         x = (encoded >> 128) & ((1 << 128) - 1);
     }
-
-
 } 
