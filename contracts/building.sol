@@ -23,7 +23,6 @@ contract Building is Resource {
         Models.TerrainType[] allowedTerrainTypes;
     }
 
-    address private _unlimitedAllowanceAddress;
     string private _name;
     string private _description;
     Models.BuildingType private _buildingType;
@@ -35,13 +34,12 @@ contract Building is Resource {
         string memory name,
         string memory symbol,
         string memory description,
-        address unlimitedAllowanceAddress,
+        address owner,
         ResourceAmount[] memory inputResources,
         ResourceAmount[] memory outputResources,
         Models.TerrainType[] memory allowedTerrainTypes,
-        Models.BuildingType buildingType) Resource(name,symbol,description,unlimitedAllowanceAddress) {
-        _unlimitedAllowanceAddress = unlimitedAllowanceAddress;
-        _approve(unlimitedAllowanceAddress, unlimitedAllowanceAddress, type(uint256).max);
+        Models.BuildingType buildingType) Resource(name,symbol,description,owner) {
+        _approve(address(this), owner, type(uint256).max);
         _buildingType = buildingType;
         _description = description;
         _name = name;

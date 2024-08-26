@@ -9,18 +9,25 @@ import "./models.sol";
 contract Resource is ERC20, Ownable {
     using SafeERC20 for IERC20;
 
-    address private immutable _unlimitedAllowanceAddress;
-    uint256 private _price;
+    struct ResourceDetails {
+        string name;
+        string description;
+    }
+
+    string public _name;
+    string public _description;
 
     constructor(
         string memory name,
         string memory symbol,
         string memory description,
-        address unlimitedAllowanceAddress
-    ) ERC20(name, symbol) Ownable(_unlimitedAllowanceAddress) {
-        require(_unlimitedAllowanceAddress != address(0), "Invalid address");
-        unlimitedAllowanceAddress = _unlimitedAllowanceAddress;
-        _approve(address(this), unlimitedAllowanceAddress, type(uint256).max);
+        address owner
+    ) ERC20(name, symbol) Ownable(owner) {
+        require(owner != address(0), "Invalid address");
+
+        _name = name;
+        _description = description;
+        _approve(address(this), owner, type(uint256).max);
     }
 
     function decimals() public pure override returns (uint8) {
@@ -31,8 +38,14 @@ contract Resource is ERC20, Ownable {
         _mint(to, amount);
     }
 
-    function burn(uint256 amount) public {
-        require(msg.sender == _unlimitedAllowanceAddress, "Not allowed to burn");
+    function burn(uint256 amount) public onlyOwner {
         _burn(msg.sender, amount);
+    }
+
+    function getResourceDetails() public view returns (ResourceDetails memory) {
+        return ResourceDetails({
+            name: _name,
+            description: _description
+        });
     }
 }
