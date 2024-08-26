@@ -2,7 +2,7 @@
 pragma solidity 0.8.23;
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import './models.sol';
-import './blueprint.sol';
+import './building.sol';
 import './resource.sol';
 
 contract Game {
@@ -15,7 +15,7 @@ contract Game {
         uint256 elevation;
         Models.TerrainType terrainType;
         Models.BiomeType biomeType;
-        address blueprint;
+        address building;
         address owner;
     }
 
@@ -26,7 +26,7 @@ contract Game {
 
     enum buySell {Buy, Sell }
 
-    struct shopItem {
+    struct ShopItem {
         buySell buySell;
         address product;
         address owner;
@@ -38,19 +38,18 @@ contract Game {
     uint256 private _mapHeight;
     address private _owner;
     string private _mapName;
-    address private _gold;
 
-    Resource private _nativeResource;
-    Blueprint private _castleBlueprint;
+    Resource private _gold;
+    Building private _castle;
 
-    address[] private _blueprintAddresses;
+    address[] private _buildingAddresses;
     address[] private _resourceAddresses;
-    mapping (address => Blueprint) private _blueprints;
+    mapping (address => Building) private _buildings;
     mapping (address => Resource) private _resources;
     mapping(uint256 => Tile) private _tiles;
     uint256[] private _tilesCoordinates;
     mapping(address => Cordinates[]) private _ownedTiles;
-    mapping(uint256 => shopItem[]) _shopItems;
+    mapping(uint256 => ShopItem[]) _shopItems;
 
     modifier onlyOwner() {
         require(msg.sender == _owner, "Not allowed");
@@ -70,47 +69,47 @@ contract Game {
     }
 
    function __initialize__() public onlyOwner {
-        _nativeResource = new Resource("Gold", "GLD", "it is native currency", address(this));
-        emit contractDeployed("Native currency contract deployed to address: ",address(_nativeResource));
+        _gold = new Resource("Gold", "GLD", "it is native currency", address(this));
+        emit contractDeployed("Gold contract deployed to address: ",address(_gold));
 
         Models.TerrainType[] memory castleAllowedTerrainTypes = new Models.TerrainType[](2);
         castleAllowedTerrainTypes[0] = Models.TerrainType.Flat;
         castleAllowedTerrainTypes[1] = Models.TerrainType.Forest;
 
-        _castleBlueprint = new Blueprint(
+        _castle = new Building(
             "Castle",
             "CSTL",
             "Start",
             address(this),
-            new Blueprint.ResourceAmount[](0), 
-            new Blueprint.ResourceAmount[](0), 
+            new Building.ResourceAmount[](0), 
+            new Building.ResourceAmount[](0), 
             castleAllowedTerrainTypes,
             Models.BuildingType.Castle
         );
-        emit contractDeployed("Castle contract deployed to address: ", address(_castleBlueprint));
+        emit contractDeployed("Castle contract deployed to address: ", address(_castle));
     }
 
     function __addTiles__(Tile[] memory tiles) public onlyOwner {
         for (uint256 i = 0; i < tiles.length; i++) {
             Tile memory tile = tiles[i];
-            _tiles[__encodeCoordinates__(tile.x, tile.y)] = tile;
-            _tilesCoordinates.push(__encodeCoordinates__(tile.x, tile.y));
+            _tiles[_encodeCoordinates(tile.x, tile.y)] = tile;
+            _tilesCoordinates.push(_encodeCoordinates(tile.x, tile.y));
         }
     }
 
-    function __addBlueprint__(
+    function __addBuilding__(
             string memory name,
             string memory symbol,
             string memory description,
-            Blueprint.ResourceAmount[] memory inputResources,
-            Blueprint.ResourceAmount[] memory outputResources,
+            Building.ResourceAmount[] memory inputResources,
+            Building.ResourceAmount[] memory outputResources,
             Models.TerrainType[] memory terrainTypes,
             Models.BuildingType buildingType) public onlyOwner {
         
-        Blueprint blueprint = new Blueprint(name, symbol, description, address(this), inputResources, outputResources, terrainTypes, buildingType);
-        emit contractDeployed("Blueprint contract deployed to address: ",address(blueprint));
-        _blueprints[address(blueprint)] = blueprint;
-        _blueprintAddresses.push(address(blueprint));
+        Building building = new Building(name, symbol, description, address(this), inputResources, outputResources, terrainTypes, buildingType);
+        emit contractDeployed("Building contract deployed to address: ",address(building));
+        _buildings[address(building)] = building;
+        _buildingAddresses.push(address(building));
     }
 
     function __addResource__(string memory name, string memory symbol, string memory description) public onlyOwner {
@@ -121,15 +120,23 @@ contract Game {
     }
 
     function __updateTile__(Tile memory tile) public onlyOwner {
-         _tiles[__encodeCoordinates__(tile.x, tile.y)] = tile;
+         _tiles[_encodeCoordinates(tile.x, tile.y)] = tile;
+    }
+
+    function getCastleContract() public view returns(address){
+        return address(_castle);
+    }
+
+    function getGoldContract() public view returns(address){
+        return address(_gold);
     }
 
     function getResourceContracts() public view returns(address[] memory){
         return _resourceAddresses;
     }
 
-     function getBlueprintsContracts() public view returns(address[] memory){
-        return _blueprintAddresses;
+     function getBuildingsContracts() public view returns(address[] memory){
+        return _buildingAddresses;
     }
 
     function getMap() public view returns (uint256 width,uint256 height,string memory name,Tile[] memory) {
@@ -142,43 +149,45 @@ contract Game {
         return (_mapWidth,_mapHeight,_mapName,tiles);
     }
 
-    function buyGold() public payable {
-        _nativeResource.mint(msg.sender, (msg.value * 100000) / 1e18);
+    function getShopItems(uint256 x, uint256 y) public view returns(ShopItem[] memory){
+        return _shopItems[_encodeCoordinates(x, y)];
     }
 
-    function setCastle(uint256 x, uint256 y) public{
-        Tile memory tile = _tiles[__encodeCoordinates__(x, y)];
-        require(_isTileDefined(tile), "Tile not found");
-        require(tile.owner != _owner, "Tile is already occupied");
+    function buyGold() public payable {
+        _gold.mint(msg.sender, (msg.value * 100000) / 1e18);
+    }
 
-        require(_castleBlueprint.isAllowedTerrainType(tile.terrainType), "Invalid terrain type");
-
+    function placeCastle(uint256 x, uint256 y) public{
         Cordinates[] memory ownedTiles = _ownedTiles[msg.sender];
-
         require(ownedTiles.length == 0, "Unable to build castle");
 
-        _nativeResource.burn(10000);
+        Tile memory tile = _tiles[_encodeCoordinates(x, y)];
+        require(_isTileDefined(tile), "Tile not found");
+        require(tile.owner != _owner, "Tile is already occupied");
+        require(_castle.isAllowedTerrainType(tile.terrainType), "Invalid terrain type");
+
+        _gold.burn(10000);
     }
 
-    function occupyTile(uint256 x, uint256 y, address blueprintAddress) public{
+    function placeBuilding(uint256 x, uint256 y, address buildingAddress) public{
          
-        Blueprint blueprint = _blueprints[blueprintAddress];
-        require(_isBlueprintDefined(blueprint), "Invalid blueprint");
+        Building building = _buildings[buildingAddress];
+        require(_isBuildingDefined(building), "Invalid building");
 
-        uint256 encodedCoordinates = __encodeCoordinates__(x, y);
+        uint256 encodedCoordinates = _encodeCoordinates(x, y);
         Tile storage tile = _tiles[encodedCoordinates];
         require(_isTileDefined(tile), "Tile not found");
 
-        require(blueprint.isAllowedTerrainType(tile.terrainType), "Invalid terrain type");
+        require(building.isAllowedTerrainType(tile.terrainType), "Invalid terrain type");
 
         Cordinates[] memory ownedTiles = _ownedTiles[msg.sender];
         require(ownedTiles.length != 0, "Build a castle first");
         require(_isTileFreeToOccupy(tile), "Tile is already occupied");
         
-        blueprint.burn(1);
+        building.burn(1);
 
         tile.owner = msg.sender;
-        tile.blueprint = blueprintAddress;
+        tile.building = buildingAddress;
 
         _ownedTiles[msg.sender].push(Cordinates({x:x, y:y}));
     }
@@ -187,42 +196,42 @@ contract Game {
         return tile.terrainType != Models.TerrainType.None;
     }
 
-    function _isBlueprintDefined(Blueprint blueprint) private view returns (bool){
-        return blueprint.getBlueprintDetails().buildingType != Models.BuildingType.None;
+    function _isTileOccupied(Tile memory tile) private view returns (bool){
+        return tile.owner != _owner && tile.building != address(0);
+    }
+
+    function _isBuildingDefined(Building building) private view returns (bool){
+        return building.getBuildingDetails().buildingType != Models.BuildingType.None;
     }
 
     function _isTileFreeToOccupy(Tile memory tile) private view returns (bool){
         require(tile.owner != _owner,"You are not allowed");
-        require(tile.blueprint == address(0),"Already occupied");
+        require(tile.building == address(0),"Already occupied");
         uint256 x = tile.x;
         uint256 y = tile.y;
         if(y % 2 == 0){
-            return  _tiles[__encodeCoordinates__(x+1, y)].owner != msg.sender 
-                    && _tiles[__encodeCoordinates__(x, y-1)].owner != msg.sender 
-                    && _tiles[__encodeCoordinates__(x-1, y-1)].owner != msg.sender 
-                    && _tiles[__encodeCoordinates__(x-1, y)].owner != msg.sender 
-                    && _tiles[__encodeCoordinates__(x-1, y+1)].owner != msg.sender 
-                    && _tiles[__encodeCoordinates__(x, y+1)].owner != msg.sender;
+            return  _tiles[_encodeCoordinates(x+1, y)].owner != msg.sender 
+                    && _tiles[_encodeCoordinates(x, y-1)].owner != msg.sender 
+                    && _tiles[_encodeCoordinates(x-1, y-1)].owner != msg.sender 
+                    && _tiles[_encodeCoordinates(x-1, y)].owner != msg.sender 
+                    && _tiles[_encodeCoordinates(x-1, y+1)].owner != msg.sender 
+                    && _tiles[_encodeCoordinates(x, y+1)].owner != msg.sender;
         }
-        return  _tiles[__encodeCoordinates__(x+1, y)].owner != msg.sender 
-                && _tiles[__encodeCoordinates__(x+1, y-1)].owner != msg.sender 
-                && _tiles[__encodeCoordinates__(x, y-1)].owner != msg.sender 
-                && _tiles[__encodeCoordinates__(x-1, y)].owner != msg.sender 
-                && _tiles[__encodeCoordinates__(x, y+1)].owner != msg.sender 
-                && _tiles[__encodeCoordinates__(x+1, y+1)].owner != msg.sender;
-    }
-
-    function getShopItems(uint256 x, uint256 y) public view returns(shopItem[] memory){
-        return _shopItems[__encodeCoordinates__(x, y)];
-    }
+        return  _tiles[_encodeCoordinates(x+1, y)].owner != msg.sender 
+                && _tiles[_encodeCoordinates(x+1, y-1)].owner != msg.sender 
+                && _tiles[_encodeCoordinates(x, y-1)].owner != msg.sender 
+                && _tiles[_encodeCoordinates(x-1, y)].owner != msg.sender 
+                && _tiles[_encodeCoordinates(x, y+1)].owner != msg.sender 
+                && _tiles[_encodeCoordinates(x+1, y+1)].owner != msg.sender;
+    }    
 
     // functions for encoding  (x,y,z) coordinates to uint256, and decoding 
-    function __encodeCoordinates__(uint256 x, uint256 y) private pure returns (uint256) {
+    function _encodeCoordinates(uint256 x, uint256 y) private pure returns (uint256) {
         require(x < 2**128 && y < 2**128, "Coordinates out of bounds");
         return (x << 128) | y;
     }
 
-    function __decodeCoordinates__(uint256 encoded) private pure returns (uint256 x, uint256 y) {
+    function _decodeCoordinates(uint256 encoded) private pure returns (uint256 x, uint256 y) {
         y = encoded & ((1 << 128) - 1);
         x = (encoded >> 128) & ((1 << 128) - 1);
     }
