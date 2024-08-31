@@ -11,8 +11,6 @@ contract Models{
         uint256 elevation;
         Models.TerrainType terrainType;
         Models.BiomeType biomeType;
-        address building;
-        address owner;
     }
 
     struct Cordinates{

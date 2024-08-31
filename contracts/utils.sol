@@ -17,11 +17,7 @@ library Utils {
 
     function isTileDefined(Models.Tile memory tile) internal pure returns (bool){
         return tile.terrainType != Models.TerrainType.None;
-    }
-
-    function isTileOccupied(Models.Tile memory tile) internal pure returns (bool){
-        return tile.building != address(0);
-    }
+    }    
 
     function isBuildingDefined(Building building) internal view returns (bool){
         return building.getBuildingDetails().buildingType != Models.BuildingType.None;

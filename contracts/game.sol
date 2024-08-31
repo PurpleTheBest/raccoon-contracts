@@ -1,185 +1,165 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import "@openzeppelin/contracts/access/Ownable.sol";
 import './models.sol';
 import './building.sol';
 import './resource.sol';
 import './utils.sol';
+import './resourceManager.sol';
+import './buildingManager.sol';
+import './tileManager.sol';
+import './shopManager.sol';
 
-
-contract Game {
+contract Game is Ownable {
     using Utils for *;
-    uint256 private _mapWidth;
-    uint256 private _mapHeight;
-    address private _owner;
+
+    struct Contracts{
+        address goldContract;
+        address castleContract;
+        address[] buildingContracts;
+        address[] resourceContracts;
+    }
+
     string private _mapName;
 
-    Resource private _gold;
-    Building private _castle;
+    address private _owner;
+    address private _tileManagerAddress;
+    address private _buildingManagerAddress;
+    address private _resourceManagerAddress;
+    address private _shopManagerAddress;
 
-    address[] private _buildingAddresses;
-    address[] private _resourceAddresses;
-    mapping (address => Building) private _buildings;
-    mapping (address => Resource) private _resources;
-    mapping(uint256 => Models.Tile) private _tiles;
-    uint256[] private _tilesCoordinates;
-    mapping(address => Models.Cordinates[]) private _ownedTiles;
-    mapping(uint256 => Models.ShopItem[]) _shopItems;
+    mapping(address => uint256[]) private _ownedBuildings;
+    mapping(uint256 => address) private _placedBuildings;
 
-    modifier onlyOwner() {
-        require(msg.sender == _owner, "Not allowed");
-        _;
-    }
-
-     modifier ensureAllowedTerrainType() {
-        require(msg.sender == _owner, "Not allowed");
-        _;
-    }
-
-    constructor(uint256 mapWidth, uint256 mapHeight, string memory mapName) {
-        _mapWidth= mapWidth;
-        _mapHeight = mapHeight;
-        _mapName = mapName;
+    constructor(
+        uint256 height,
+        uint256 width,
+        string memory mapName) Ownable(msg.sender) {
         _owner = msg.sender;
-    }
-
-   function __initialize__() public onlyOwner {
-        _gold = new Resource("Gold", "GLD", "it is native currency", address(this));
-
-        Models.TerrainType[] memory castleAllowedTerrainTypes = new Models.TerrainType[](2);
-        castleAllowedTerrainTypes[0] = Models.TerrainType.Flat;
-        castleAllowedTerrainTypes[1] = Models.TerrainType.Forest;
-
-        _castle = new Building(
-            "Castle",
-            "CSTL",
-            "Start",
-            address(this),
-            new Building.ResourceAmount[](0), 
-            new Building.ResourceAmount[](0), 
-            castleAllowedTerrainTypes,
-            Models.BuildingType.Castle
-        );
-    }
-
-    function __addTiles__(Models.Tile[] memory tiles) public onlyOwner {
-        for (uint256 i = 0; i < tiles.length; i++) {
-            Models.Tile memory tile = tiles[i];
-            _tiles[Utils.encodeCoordinates(tile.x, tile.y)] = tile;
-            _tilesCoordinates.push(Utils.encodeCoordinates(tile.x, tile.y));
-        }
-    }
-
-    function __addBuilding__(
-            string memory name,
-            string memory symbol,
-            string memory description,
-            Building.ResourceAmount[] memory inputResources,
-            Building.ResourceAmount[] memory outputResources,
-            Models.TerrainType[] memory terrainTypes,
-            Models.BuildingType buildingType) public onlyOwner {
+        _mapName = mapName;
+       
+        _tileManagerAddress = address(new TileManager(height, width, _owner));
+        emit Models.ContractDeployed("Tile manager deployed", _tileManagerAddress);
         
-        Building building = new Building(name, symbol, description, address(this), inputResources, outputResources, terrainTypes, buildingType);
-        _buildings[address(building)] = building;
-        _buildingAddresses.push(address(building));
+        _buildingManagerAddress = address(new BuildingManager(_owner));
+        emit Models.ContractDeployed("Building manager deployed", _buildingManagerAddress);
+
+        _resourceManagerAddress = address(new ResourceManager(_owner));
+        emit Models.ContractDeployed("Resource manager deployed", _resourceManagerAddress);
+    
+        _shopManagerAddress = address(new ShopManager(_owner));
+        emit Models.ContractDeployed("Shop manager deployed", _shopManagerAddress);
     }
 
-    function __addResource__(string memory name, string memory symbol, string memory description) public onlyOwner {
-        Resource resource = new Resource(name, symbol, description, address(this));
-        _resources[address(resource)] = resource;
-        _resourceAddresses.push(address(resource));
+    function getContracts() public view returns (Contracts memory){
+        BuildingManager buildingManager = BuildingManager(_buildingManagerAddress);
+        ResourceManager resourceManager = ResourceManager(_resourceManagerAddress);
+
+        return Contracts({
+            goldContract: resourceManager.getGoldContract(),
+            castleContract: buildingManager.getCastleContract(),
+            buildingContracts: buildingManager.getAllContracts(),
+            resourceContracts: resourceManager.getAllContracts()
+        });
     }
 
-    function __updateTile__(Models.Tile memory tile) public onlyOwner {
-         _tiles[Utils.encodeCoordinates(tile.x, tile.y)] = tile;
-    }
-
-    function getCastleContract() public view returns(address){
-        return address(_castle);
-    }
-
-    function getGoldContract() public view returns(address){
-        return address(_gold);
-    }
-
-    function getResourceContracts() public view returns(address[] memory){
-        return _resourceAddresses;
-    }
-
-     function getBuildingsContracts() public view returns(address[] memory){
-        return _buildingAddresses;
-    }
-
-    function getMap() public view returns (uint256 width,uint256 height,string memory name, Models.Tile[] memory) {
-        Models.Tile[] memory tiles = new Models.Tile[](_tilesCoordinates.length);
-
-        for (uint256 i = 0; i < _tilesCoordinates.length; i++) {
-            tiles[i] = _tiles[_tilesCoordinates[i]];
-        }
-
-        return (_mapWidth,_mapHeight,_mapName,tiles);
+    function getMap() public view returns (uint256 width,uint256 height, Models.Tile[] memory) {
+        return TileManager(_tileManagerAddress).getMap();
     }
 
     function getShopItems(uint256 x, uint256 y) public view returns(Models.ShopItem[] memory){
-        return _shopItems[Utils.encodeCoordinates(x, y)];
+        return ShopManager(_shopManagerAddress).getShopItems(x, y);
     }
 
     function buyGold() public payable {
-        _gold.mint(msg.sender, (msg.value * 100000) / 1e18);
+        Resource(ResourceManager(_resourceManagerAddress).getGoldContract()).mint(msg.sender, (msg.value * 100000) / 1e18);
     }
 
     function placeCastle(uint256 x, uint256 y) public{
-        Models.Cordinates[] memory ownedTiles = _ownedTiles[msg.sender];
-        require(ownedTiles.length == 0, "Unable to build castle");
+        // Check if user eligible to place a castle
+        uint256[] memory ownedBuildings = _ownedBuildings[msg.sender];
+        require(ownedBuildings.length == 0, "Unable to build castle");
 
-        Models.Tile memory tile = _tiles[Utils.encodeCoordinates(x, y)];
+        // Validate if tile exists
+        Models.Tile memory tile = TileManager(_tileManagerAddress).get(x, y);
         require(Utils.isTileDefined(tile), "Tile not found");
-        require(!Utils.isTileOccupied(tile), "Tile is already occupied");
-        require(_castle.isAllowedTerrainType(tile.terrainType), "Invalid terrain type");
 
-        _gold.burn(10000);
+        // Check if tile is free
+        require(!_isTileOccupied(x, y), "Tile is already occupied");
+        
+        // Validate if terrain type matches with building's allowed terrain types
+        require(Building(BuildingManager(_buildingManagerAddress).getCastleContract()).isAllowedTerrainType(tile.terrainType), "Invalid terrain type");
+
+        // Burn gold for the castle
+        Resource(ResourceManager(_resourceManagerAddress).getGoldContract()).burn(10000);
     }
 
     function placeBuilding(uint256 x, uint256 y, address buildingAddress) public{
-        Models.Cordinates[] memory ownedTiles = _ownedTiles[msg.sender];
-        require(ownedTiles.length != 0, "Build a castle first");
-
-        Building building = _buildings[buildingAddress];
+        // Validate if tile exists
+        Models.Tile memory tile = TileManager(_tileManagerAddress).get(x, y);
+        require(Utils.isTileDefined(tile), "Tile not found");        
+       
+        // Validate if building exists
+        Building building = BuildingManager(_buildingManagerAddress).get(buildingAddress);
         require(Utils.isBuildingDefined(building), "Invalid building");
 
-        uint256 encodedCoordinates = Utils.encodeCoordinates(x, y);
-        Models.Tile storage tile = _tiles[encodedCoordinates];
-        require(Utils.isTileDefined(tile), "Tile not found");
-        require(_isTileFreeToOccupy(tile), "Tile is already occupied");
+        // Validate if terrain type matches with building's allowed terrain types
         require(building.isAllowedTerrainType(tile.terrainType), "Invalid terrain type");
         
+        // Eligible to place building. If owned buildings count is 0, then castle should be built first
+        uint256[] memory ownedBuildings = _ownedBuildings[msg.sender];
+        require(ownedBuildings.length != 0, "Build a castle first");
+        
+        // Validate if tile is free to place building on it and at least 1 building is owned by the caller in the tile's radius
+        require(_hasAdjacentOwnedBuilding(x, y), "Tile is already occupied");
+
+        // Burn building
         building.burn(1);
-
-        tile.owner = msg.sender;
-        tile.building = buildingAddress;
-
-        _ownedTiles[msg.sender].push(Models.Cordinates({x:x, y:y}));
+        
+        // Register building ownership
+        _ownedBuildings[msg.sender].push(Utils.encodeCoordinates(x, y));
     }
 
+    function _isTileOccupied(uint256 x, uint256 y) private view returns (bool){
+        return _placedBuildings[Utils.encodeCoordinates(x, y)] != address(0);
+    }
    
-    function _isTileFreeToOccupy(Models.Tile memory tile) private view returns (bool){
-        require(!Utils.isTileOccupied(tile), "Tile is already occupied");
-        
-        uint256 x = tile.x;
-        uint256 y = tile.y;
-        if(y % 2 == 0){
-            return  _tiles[Utils.encodeCoordinates(x+1, y)].owner != msg.sender 
-                    && _tiles[Utils.encodeCoordinates(x, y-1)].owner != msg.sender 
-                    && _tiles[Utils.encodeCoordinates(x-1, y-1)].owner != msg.sender 
-                    && _tiles[Utils.encodeCoordinates(x-1, y)].owner != msg.sender 
-                    && _tiles[Utils.encodeCoordinates(x-1, y+1)].owner != msg.sender 
-                    && _tiles[Utils.encodeCoordinates(x, y+1)].owner != msg.sender;
+    function _hasAdjacentOwnedBuilding(uint256 x, uint256 y) private view returns (bool) {
+        require(!_isTileOccupied(x, y), "Tile is already occupied");
+
+        uint256[6] memory adjacentTiles;
+
+        if (y % 2 == 0) {
+            adjacentTiles[0] = Utils.encodeCoordinates(x + 1, y);
+            adjacentTiles[1] = Utils.encodeCoordinates(x, y - 1);
+            adjacentTiles[2] = Utils.encodeCoordinates(x - 1, y - 1);
+            adjacentTiles[3] = Utils.encodeCoordinates(x - 1, y);
+            adjacentTiles[4] = Utils.encodeCoordinates(x - 1, y + 1);
+            adjacentTiles[5] = Utils.encodeCoordinates(x, y + 1);
+        } else {
+            adjacentTiles[0] = Utils.encodeCoordinates(x + 1, y);
+            adjacentTiles[1] = Utils.encodeCoordinates(x + 1, y - 1);
+            adjacentTiles[2] = Utils.encodeCoordinates(x, y - 1);
+            adjacentTiles[3] = Utils.encodeCoordinates(x - 1, y);
+            adjacentTiles[4] = Utils.encodeCoordinates(x, y + 1);
+            adjacentTiles[5] = Utils.encodeCoordinates(x + 1, y + 1);
         }
-        return  _tiles[Utils.encodeCoordinates(x+1, y)].owner != msg.sender 
-                && _tiles[Utils.encodeCoordinates(x+1, y-1)].owner != msg.sender 
-                && _tiles[Utils.encodeCoordinates(x, y-1)].owner != msg.sender 
-                && _tiles[Utils.encodeCoordinates(x-1, y)].owner != msg.sender 
-                && _tiles[Utils.encodeCoordinates(x, y+1)].owner != msg.sender 
-                && _tiles[Utils.encodeCoordinates(x+1, y+1)].owner != msg.sender;
-    }    
+
+        bool hasAdjacentOwnedBuilding = false;
+
+        for (uint256 i = 0; i < adjacentTiles.length; i++) {
+            if (_placedBuildings[adjacentTiles[i]] != address(0) &&
+                _isBuildingOwnedByCaller(adjacentTiles[i])) {
+                hasAdjacentOwnedBuilding = true;
+                break;
+            }
+        }
+
+        return hasAdjacentOwnedBuilding;
+    }
+
+    function _isBuildingOwnedByCaller(uint256 encodedCoords) private view returns (bool) {
+        address buildingContractAddress = _placedBuildings[encodedCoords];
+        return buildingContractAddress == msg.sender;
+    }
 } 
