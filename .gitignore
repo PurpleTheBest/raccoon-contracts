@@ -3,4 +3,6 @@ artifacts/
 node_modules
 cache/
 .env
+.deploys
+.deps
 bin/
