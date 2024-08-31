@@ -3,6 +3,7 @@ pragma solidity 0.8.23;
 
 contract Models{
     event ContractDeployed(string message,address addr);
+    event OrderExecuted(address indexed executor, uint256 shopItemId, uint256 quantity, uint256 price, Models.BuySell buySell);
 
     struct Tile {
         string name;
@@ -21,12 +22,14 @@ contract Models{
     enum BuySell {Buy, Sell }
 
     struct ShopItem {
+        uint256 id;
         BuySell buySell;
         address product;
         address owner;
         uint256 quantity;
         uint256 price;
     }
+
     enum TerrainType { None, Forest, DeepWater, Water, Flat, Mountain }
     enum BiomeType {  None, Normal, Desert, Snow }
     enum BuildingType { None, Castle, Shop, Tavern }   

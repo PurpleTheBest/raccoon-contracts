@@ -44,10 +44,11 @@ contract Game is Ownable {
         _buildingManagerAddress = address(new BuildingManager(_owner));
         emit Models.ContractDeployed("Building manager deployed", _buildingManagerAddress);
 
-        _resourceManagerAddress = address(new ResourceManager(_owner));
+        ResourceManager resourceManager = new ResourceManager(_owner);
+        _resourceManagerAddress = address(resourceManager);
         emit Models.ContractDeployed("Resource manager deployed", _resourceManagerAddress);
     
-        _shopManagerAddress = address(new ShopManager(_owner));
+        _shopManagerAddress = address(new ShopManager(_owner, resourceManager.getGoldContract()));
         emit Models.ContractDeployed("Shop manager deployed", _shopManagerAddress);
     }
 
