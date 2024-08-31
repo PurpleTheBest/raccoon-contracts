@@ -110,6 +110,9 @@ contract Game is Ownable {
         uint256[] memory ownedBuildings = _ownedBuildings[msg.sender];
         require(ownedBuildings.length != 0, "Build a castle first");
         
+        // Verify if tile occupied or not
+        require(!_isTileOccupied(x, y), "Tile is already occupied");
+
         // Validate if tile is free to place building on it and at least 1 building is owned by the caller in the tile's radius
         require(_hasAdjacentOwnedBuilding(x, y), "Tile is already occupied");
 
@@ -125,31 +128,12 @@ contract Game is Ownable {
     }
    
     function _hasAdjacentOwnedBuilding(uint256 x, uint256 y) private view returns (bool) {
-        require(!_isTileOccupied(x, y), "Tile is already occupied");
-
-        uint256[6] memory adjacentTiles;
-
-        if (y % 2 == 0) {
-            adjacentTiles[0] = Utils.encodeCoordinates(x + 1, y);
-            adjacentTiles[1] = Utils.encodeCoordinates(x, y - 1);
-            adjacentTiles[2] = Utils.encodeCoordinates(x - 1, y - 1);
-            adjacentTiles[3] = Utils.encodeCoordinates(x - 1, y);
-            adjacentTiles[4] = Utils.encodeCoordinates(x - 1, y + 1);
-            adjacentTiles[5] = Utils.encodeCoordinates(x, y + 1);
-        } else {
-            adjacentTiles[0] = Utils.encodeCoordinates(x + 1, y);
-            adjacentTiles[1] = Utils.encodeCoordinates(x + 1, y - 1);
-            adjacentTiles[2] = Utils.encodeCoordinates(x, y - 1);
-            adjacentTiles[3] = Utils.encodeCoordinates(x - 1, y);
-            adjacentTiles[4] = Utils.encodeCoordinates(x, y + 1);
-            adjacentTiles[5] = Utils.encodeCoordinates(x + 1, y + 1);
-        }
-
+        uint256[6] memory adjacentTileCordinates = Utils.getAdjacentTileCordinates(x, y);
         bool hasAdjacentOwnedBuilding = false;
 
-        for (uint256 i = 0; i < adjacentTiles.length; i++) {
-            if (_placedBuildings[adjacentTiles[i]] != address(0) &&
-                _isBuildingOwnedByCaller(adjacentTiles[i])) {
+        for (uint256 i = 0; i < adjacentTileCordinates.length; i++) {
+            if (_placedBuildings[adjacentTileCordinates[i]] != address(0) &&
+                _isBuildingOwnedByCaller(adjacentTileCordinates[i])) {
                 hasAdjacentOwnedBuilding = true;
                 break;
             }
