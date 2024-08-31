@@ -6,3 +6,4 @@ cache/
 .deploys
 .deps
 bin/
+scripts/etherscan
