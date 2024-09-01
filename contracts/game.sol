@@ -21,9 +21,16 @@ contract Game is Ownable {
     address private _resourceFactoryAddress;
     address private _shopFactoryAddress;
 
+    // Owner => owned coordinates
     mapping(address => uint256[]) private _ownedBuildings;
+
+    // coordinate => building address
     mapping(uint256 => address) private _placedBuildings;
-    uint256[] private _occupiedCordinates;
+
+    // coordinate => owner
+    mapping(uint256 => address) private _coordinateOwners;
+
+    uint256[] private _occupiedCoordinates;
     
     constructor() Ownable(msg.sender) {
     }
@@ -51,8 +58,22 @@ contract Game is Ownable {
         });
     }
 
-    function getPlacedBuildings() public view {
+    function getMapBuildings() public view returns (uint256[] memory, uint256[] memory, address[] memory, address[] memory) {
+        uint256 occupiedCount = _occupiedCoordinates.length;
+        uint256[] memory xCoords = new uint256[](occupiedCount);
+        uint256[] memory yCoords = new uint256[](occupiedCount);
+        address[] memory buildings = new address[](occupiedCount);
+        address[] memory owners = new address[](occupiedCount);
 
+        for (uint256 i = 0; i < occupiedCount; i++) {
+            buildings[i] = _placedBuildings[_occupiedCoordinates[i]];
+            owners[i] = _coordinateOwners[_occupiedCoordinates[i]];
+            (uint256 x, uint256 y) = Utils.decodeCoordinates(_occupiedCoordinates[i]);
+            xCoords[i] = x;
+            yCoords[i] = y;
+        }
+
+        return (xCoords, yCoords, buildings, owners);
     }
 
     function getShopItems(uint256 x, uint256 y) public view returns(Models.ShopItem[] memory){
@@ -89,8 +110,10 @@ contract Game is Ownable {
         require(Utils.isTileDefined(tile), "Tile not found");        
        
         // Validate if building exists
-        Building building = BuildingFactory(_buildingFactoryAddress).getBuilding(buildingAddress);
-        require(Utils.isBuildingDefined(building), "Invalid building");
+        require(BuildingFactory(_buildingFactoryAddress).isDefined(buildingAddress), "Invalid building");
+
+        // Get building contract
+        Building building = Building(buildingAddress);
 
         // Validate if terrain type matches with building's allowed terrain types
         require(building.isAllowedTerrainType(tile.terrainType), "Invalid terrain type");
@@ -107,7 +130,7 @@ contract Game is Ownable {
             require(buildingAddress == BuildingFactory(_buildingFactoryAddress).getCastle(address(this)), "Invalid building");
             
             // Burn gold for castle
-            Resource(ResourceFactory(_resourceFactoryAddress).getGold(address(this))).burn(10000);
+            Resource(ResourceFactory(_resourceFactoryAddress).getGold(address(this))).burn(msg.sender, 10000);
         
         }else{
 
@@ -115,12 +138,14 @@ contract Game is Ownable {
             require(_hasAdjacentOwnedBuilding(x, y), "Tile is already occupied");
             
             // Burn building
-            building.burn(1);
+            building.burn(msg.sender, 1);
         }
         
         // Register building ownership
         _ownedBuildings[msg.sender].push(encodedCordinates);
-        _occupiedCordinates.push(encodedCordinates);
+        _occupiedCoordinates.push(encodedCordinates);
+        _placedBuildings[encodedCordinates] = buildingAddress;
+        _coordinateOwners[encodedCordinates] = msg.sender;
     }
    
     function _hasAdjacentOwnedBuilding(uint256 x, uint256 y) private view returns (bool) {

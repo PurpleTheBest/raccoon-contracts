@@ -31,7 +31,7 @@ contract Resource is ERC20, Ownable {
         _mint(to, amount);
     }
 
-    function burn(uint256 amount) public onlyOwner {
-        _burn(msg.sender, amount);
+    function burn(address burnAddress, uint256 amount) public onlyOwner {
+        _burn(burnAddress, amount);
     }
 }

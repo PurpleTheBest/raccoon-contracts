@@ -8,7 +8,7 @@ import './utils.sol';
 contract BuildingFactory is Ownable {
     using Utils for *;
 
-    mapping (address => Building) private _buildings;
+    mapping (address => bool) _buildings;
     mapping (address => address[]) _gameBuildings;
     mapping (address => address) _gameCastle;
     address private _owner;
@@ -22,7 +22,7 @@ contract BuildingFactory is Ownable {
         castleAllowedTerrainTypes[0] = Models.TerrainType.Flat;
         castleAllowedTerrainTypes[1] = Models.TerrainType.Forest;
 
-        address castleAddress = address(new Building(
+        Building building = new Building(
             "Castle",
             "CSTL",
             "",
@@ -31,9 +31,10 @@ contract BuildingFactory is Ownable {
             new Building.ResourceAmount[](0), 
             castleAllowedTerrainTypes,
             Models.BuildingType.Castle
-        ));
+        );
+        address castleAddress = address(building);
         _gameCastle[gameAddress] = castleAddress;
-
+        _buildings[castleAddress] = true;
         emit Models.ContractDeployed("Castle contract deployed", castleAddress);
     }
 
@@ -49,8 +50,9 @@ contract BuildingFactory is Ownable {
             ) public onlyOwner {
         
         Building building = new Building(name, symbol, description, owner, inputResources, outputResources, terrainTypes, buildingType);
-        _buildings[address(building)] = building;
         _gameBuildings[owner].push(address(building));
+        _buildings[address(building)] = true;
+
         emit Models.ContractDeployed("Building contract deployed", address(building));
     }
 
@@ -62,7 +64,7 @@ contract BuildingFactory is Ownable {
         return _gameBuildings[gameAddress];
     }
 
-    function getBuilding(address buildingAddress) public view returns (Building building) {
+    function isDefined(address buildingAddress) public view returns (bool){
         return _buildings[buildingAddress];
     }
 }
