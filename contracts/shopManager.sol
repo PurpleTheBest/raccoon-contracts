@@ -8,14 +8,17 @@ import './resource.sol';
 contract ShopManager is Ownable {
     using Utils for *;
 
+    address private _owner;
     uint256 private _shopItemId = 1;
-    address private _goldContract;
+
+    // ShopItemId => ShopItem
     mapping(uint256 => Models.ShopItem) _shopItems;
+
+    // ShopCordinates => ShopItemIds
     mapping(uint256 => uint256[]) _shops;
 
-    constructor(address goldContract, address owner) Ownable(owner) {
-        require(owner != address(0), "Invalid address");
-        _goldContract = goldContract;
+    constructor() Ownable(msg.sender) {
+        _owner = msg.sender;
     }
 
     function __add__(uint256 x, uint256 y, Models.ShopItem[] memory shopItems) public onlyOwner {
@@ -40,22 +43,7 @@ contract ShopManager is Ownable {
         return shopItems;
     }
 
-    function executeOrder(uint256 shopItemId) public {
-        Models.ShopItem memory shopItem = _shopItems[shopItemId];
-        require(shopItem.id != 0, "Shop item does not exist");
-
-        IERC20 productToken = IERC20(shopItem.product);
-        Resource goldToken = Resource(_goldContract);
-
-        if (shopItem.buySell == Models.BuySell.Buy) {
-            require(goldToken.transferFrom(msg.sender, shopItem.owner, shopItem.price), "Gold transfer failed");
-            require(productToken.transfer(msg.sender, shopItem.quantity), "Product transfer failed");
-        } else if (shopItem.buySell == Models.BuySell.Sell) {
-            require(productToken.transferFrom(msg.sender, address(this), shopItem.quantity), "Product transfer failed");
-            require(goldToken.transfer(msg.sender, shopItem.price), "Gold transfer failed");
-        }
-
-        emit Models.OrderExecuted(msg.sender, shopItemId, shopItem.quantity, shopItem.price, shopItem.buySell);
+    function getShopItem(uint256 id) public view returns(Models.ShopItem memory){
+        return _shopItems[id];
     }
-
 }

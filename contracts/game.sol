@@ -7,7 +7,7 @@ import './resource.sol';
 import './utils.sol';
 import './resourceManager.sol';
 import './buildingManager.sol';
-import './tileManager.sol';
+import './map.sol';
 import './shopManager.sol';
 
 contract Game is Ownable {
@@ -20,10 +20,7 @@ contract Game is Ownable {
         address[] resourceContracts;
     }
 
-    string private _mapName;
-
-    address private _owner;
-    address private _tileManagerAddress;
+    address private _mapAddress;
     address private _buildingManagerAddress;
     address private _resourceManagerAddress;
     address private _shopManagerAddress;
@@ -31,25 +28,18 @@ contract Game is Ownable {
     mapping(address => uint256[]) private _ownedBuildings;
     mapping(uint256 => address) private _placedBuildings;
 
-    constructor(
-        uint256 height,
-        uint256 width,
-        string memory mapName) Ownable(msg.sender) {
-        _owner = msg.sender;
-        _mapName = mapName;
-       
-        _tileManagerAddress = address(new TileManager(height, width, _owner));
-        emit Models.ContractDeployed("Tile manager deployed", _tileManagerAddress);
-        
-        _buildingManagerAddress = address(new BuildingManager(_owner));
-        emit Models.ContractDeployed("Building manager deployed", _buildingManagerAddress);
+    constructor() Ownable(msg.sender) {
+    }
 
-        ResourceManager resourceManager = new ResourceManager(_owner);
-        _resourceManagerAddress = address(resourceManager);
-        emit Models.ContractDeployed("Resource manager deployed", _resourceManagerAddress);
-    
-        _shopManagerAddress = address(new ShopManager(_owner, resourceManager.getGoldContract()));
-        emit Models.ContractDeployed("Shop manager deployed", _shopManagerAddress);
+    function __initialize__(address mapAddress, address buildingManagerAddress, address resourceManagerAddress, address shopManagerAddress) public onlyOwner{
+        _mapAddress = mapAddress;
+        _buildingManagerAddress = buildingManagerAddress;
+        _resourceManagerAddress = resourceManagerAddress;
+        _shopManagerAddress = shopManagerAddress;
+    }
+
+    function getMap() public view returns (uint256 width,uint256 height, Models.Tile[] memory) {
+        return Map(_mapAddress).getMap();
     }
 
     function getContracts() public view returns (Contracts memory){
@@ -64,10 +54,6 @@ contract Game is Ownable {
         });
     }
 
-    function getMap() public view returns (uint256 width,uint256 height, Models.Tile[] memory) {
-        return TileManager(_tileManagerAddress).getMap();
-    }
-
     function getShopItems(uint256 x, uint256 y) public view returns(Models.ShopItem[] memory){
         return ShopManager(_shopManagerAddress).getShopItems(x, y);
     }
@@ -76,28 +62,29 @@ contract Game is Ownable {
         Resource(ResourceManager(_resourceManagerAddress).getGoldContract()).mint(msg.sender, (msg.value * 100000) / 1e18);
     }
 
-    function placeCastle(uint256 x, uint256 y) public{
-        // Check if user eligible to place a castle
-        uint256[] memory ownedBuildings = _ownedBuildings[msg.sender];
-        require(ownedBuildings.length == 0, "Unable to build castle");
+    function executeShopOrder(uint256 shopItemId) public {
+        Models.ShopItem memory shopItem = ShopManager(_shopManagerAddress).getShopItem(shopItemId);
+        require(shopItem.id != 0, "Shop item does not exist");
 
-        // Validate if tile exists
-        Models.Tile memory tile = TileManager(_tileManagerAddress).get(x, y);
-        require(Utils.isTileDefined(tile), "Tile not found");
+        IERC20 productToken = IERC20(shopItem.product);
+        Resource goldToken = Resource(ResourceManager(_resourceManagerAddress).getGoldContract());
 
-        // Check if tile is free
-        require(!_isTileOccupied(x, y), "Tile is already occupied");
-        
-        // Validate if terrain type matches with building's allowed terrain types
-        require(Building(BuildingManager(_buildingManagerAddress).getCastleContract()).isAllowedTerrainType(tile.terrainType), "Invalid terrain type");
+        if (shopItem.buySell == Models.BuySell.Buy) {
+            require(goldToken.transferFrom(msg.sender, shopItem.owner, shopItem.price), "Gold transfer failed");
+            require(productToken.transfer(msg.sender, shopItem.quantity), "Product transfer failed");
+        } else if (shopItem.buySell == Models.BuySell.Sell) {
+            require(productToken.transferFrom(msg.sender, address(this), shopItem.quantity), "Product transfer failed");
+            require(goldToken.transfer(msg.sender, shopItem.price), "Gold transfer failed");
+        }
 
-        // Burn gold for the castle
-        Resource(ResourceManager(_resourceManagerAddress).getGoldContract()).burn(10000);
+        emit Models.OrderExecuted(msg.sender, shopItemId, shopItem.quantity, shopItem.price, shopItem.buySell);
     }
 
     function placeBuilding(uint256 x, uint256 y, address buildingAddress) public{
+        uint256 encodedCordinates = Utils.encodeCoordinates(x, y);
+
         // Validate if tile exists
-        Models.Tile memory tile = TileManager(_tileManagerAddress).get(x, y);
+        Models.Tile memory tile = Map(_mapAddress).getTile(x, y);
         require(Utils.isTileDefined(tile), "Tile not found");        
        
         // Validate if building exists
@@ -107,25 +94,31 @@ contract Game is Ownable {
         // Validate if terrain type matches with building's allowed terrain types
         require(building.isAllowedTerrainType(tile.terrainType), "Invalid terrain type");
         
+        // Verify if tile occupied or not
+        require(_placedBuildings[encodedCordinates] == address(0), "Tile is already occupied");
+
         // Eligible to place building. If owned buildings count is 0, then castle should be built first
         uint256[] memory ownedBuildings = _ownedBuildings[msg.sender];
-        require(ownedBuildings.length != 0, "Build a castle first");
+
+        if(ownedBuildings.length == 0){
+
+            // Ensure building address is castle
+            require(buildingAddress == BuildingManager(_buildingManagerAddress).getCastleContract(), "Invalid building");
+            
+            // Burn gold for castle
+            Resource(ResourceManager(_resourceManagerAddress).getGoldContract()).burn(10000);
         
-        // Verify if tile occupied or not
-        require(!_isTileOccupied(x, y), "Tile is already occupied");
+        }else{
 
-        // Validate if tile is free to place building on it and at least 1 building is owned by the caller in the tile's radius
-        require(_hasAdjacentOwnedBuilding(x, y), "Tile is already occupied");
-
-        // Burn building
-        building.burn(1);
+            // Validate if tile is free to place building on it and at least 1 building is owned by the caller in the tile's radius
+            require(_hasAdjacentOwnedBuilding(x, y), "Tile is already occupied");
+            
+            // Burn building
+            building.burn(1);
+        }
         
         // Register building ownership
-        _ownedBuildings[msg.sender].push(Utils.encodeCoordinates(x, y));
-    }
-
-    function _isTileOccupied(uint256 x, uint256 y) private view returns (bool){
-        return _placedBuildings[Utils.encodeCoordinates(x, y)] != address(0);
+        _ownedBuildings[msg.sender].push(encodedCordinates);
     }
    
     function _hasAdjacentOwnedBuilding(uint256 x, uint256 y) private view returns (bool) {

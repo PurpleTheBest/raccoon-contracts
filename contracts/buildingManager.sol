@@ -12,9 +12,15 @@ contract BuildingManager is Ownable {
     address[] private _buildingAddresses;
     mapping (address => Building) private _buildings;
     address private _castleContract;
+    address private _gameAddress;
+    address private _owner;
 
-    constructor(address owner) Ownable(owner) {
-        require(owner != address(0), "Invalid address");
+
+    constructor(address gameAddress) Ownable(msg.sender) {
+        require(gameAddress != address(0), "Invalid address");
+
+        _gameAddress = gameAddress;
+        _owner = msg.sender;
 
         Models.TerrainType[] memory castleAllowedTerrainTypes = new Models.TerrainType[](2);
         castleAllowedTerrainTypes[0] = Models.TerrainType.Flat;
@@ -24,7 +30,7 @@ contract BuildingManager is Ownable {
             "Castle",
             "CSTL",
             "",
-            owner,
+            _gameAddress,
             new Building.ResourceAmount[](0), 
             new Building.ResourceAmount[](0), 
             castleAllowedTerrainTypes,

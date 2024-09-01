@@ -11,17 +11,19 @@ contract ResourceManager is Ownable{
     address[] private _resourceAddresses;
     mapping (address => Resource) private _resources;
     address private _goldContract;
+    address private _gameAddress;
+    address private _owner;
 
-
-    constructor(address owner) Ownable(owner) {
-        require(owner != address(0), "Invalid address");
-        _goldContract = address(new Resource("Gold", "GLD", "", owner));
+    constructor(address gameAddress) Ownable(msg.sender) {
+        require(gameAddress != address(0), "Invalid address");
+        _gameAddress = gameAddress;
+        _owner = msg.sender;
+        _goldContract = address(new Resource("Gold", "GLD", "", _gameAddress));
         emit Models.ContractDeployed("Gold contract deployed", address(_goldContract));
-
     }
 
     function __add__(string memory name, string memory symbol, string memory description) public onlyOwner {
-        Resource resource = new Resource(name, symbol, description, address(this));
+        Resource resource = new Resource(name, symbol, description, _gameAddress);
         _resources[address(resource)] = resource;
         _resourceAddresses.push(address(resource));
         emit Models.ContractDeployed("Building contract deployed", address(resource));
