@@ -14,14 +14,13 @@ contract Map is Ownable {
     mapping(uint256 => Models.Tile) private _tiles;
     uint256 private _width;
     uint256 private _height;
+    address private _owner;
 
     constructor(
         uint256 height,
-        uint256 width,
-        address owner
-    ) Ownable(owner) {
-        require(owner != address(0), "Invalid address");
-
+        uint256 width
+    ) Ownable(msg.sender) {
+        _owner = msg.sender;
         _height = height;
         _width = width;
     }
