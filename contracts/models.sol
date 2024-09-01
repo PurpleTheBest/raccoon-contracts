@@ -6,7 +6,6 @@ contract Models{
     event OrderExecuted(address indexed executor, uint256 shopItemId, uint256 quantity, uint256 price, Models.BuySell buySell);
 
     struct Tile {
-        string name;
         uint256 x;
         uint256 y;
         uint256 elevation;

@@ -16,16 +16,13 @@ contract Map is Ownable {
     uint256 private _height;
     address private _owner;
 
-    constructor(
-        uint256 height,
-        uint256 width
-    ) Ownable(msg.sender) {
+    constructor() Ownable(msg.sender) {
         _owner = msg.sender;
-        _height = height;
-        _width = width;
     }
 
-    function __initialize__(Models.Tile[] memory tiles) public onlyOwner {
+    function __initialize__(uint256 height, uint256 width, Models.Tile[] memory tiles) public onlyOwner {
+        _height = height;
+        _width = width;
         for (uint256 i = 0; i < tiles.length; i++) {
             Models.Tile memory tile = tiles[i];
             _tiles[Utils.encodeCoordinates(tile.x, tile.y)] = tile;
