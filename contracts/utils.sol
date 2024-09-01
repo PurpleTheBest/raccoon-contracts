@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
-import './models.sol';
 import './building.sol';
-import './resource.sol';
 
 library Utils {
     function encodeCoordinates(uint256 x, uint256 y) internal pure returns (uint256) {

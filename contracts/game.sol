@@ -1,14 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 import "@openzeppelin/contracts/access/Ownable.sol";
-import './models.sol';
-import './building.sol';
-import './resource.sol';
-import './utils.sol';
-import './resourceManager.sol';
-import './buildingManager.sol';
+import './resourceFactory.sol';
+import './buildingFactory.sol';
+import './shopFactory.sol';
 import './map.sol';
-import './shopManager.sol';
 
 contract Game is Ownable {
     using Utils for *;
@@ -21,21 +17,22 @@ contract Game is Ownable {
     }
 
     address private _mapAddress;
-    address private _buildingManagerAddress;
-    address private _resourceManagerAddress;
-    address private _shopManagerAddress;
+    address private _buildingFactoryAddress;
+    address private _resourceFactoryAddress;
+    address private _shopFactoryAddress;
 
     mapping(address => uint256[]) private _ownedBuildings;
     mapping(uint256 => address) private _placedBuildings;
-
+    uint256[] private _occupiedCordinates;
+    
     constructor() Ownable(msg.sender) {
     }
 
-    function __initialize__(address mapAddress, address buildingManagerAddress, address resourceManagerAddress, address shopManagerAddress) public onlyOwner{
+    function __initialize__(address mapAddress, address buildingFactoryAddress, address resourceFactoryAddress, address shopFactoryAddress) public onlyOwner{
         _mapAddress = mapAddress;
-        _buildingManagerAddress = buildingManagerAddress;
-        _resourceManagerAddress = resourceManagerAddress;
-        _shopManagerAddress = shopManagerAddress;
+        _buildingFactoryAddress = buildingFactoryAddress;
+        _resourceFactoryAddress = resourceFactoryAddress;
+        _shopFactoryAddress = shopFactoryAddress;
     }
 
     function getMap() public view returns (uint256 width,uint256 height, Models.Tile[] memory) {
@@ -43,31 +40,35 @@ contract Game is Ownable {
     }
 
     function getContracts() public view returns (Contracts memory){
-        BuildingManager buildingManager = BuildingManager(_buildingManagerAddress);
-        ResourceManager resourceManager = ResourceManager(_resourceManagerAddress);
-
+        BuildingFactory buildingFactory = BuildingFactory(_buildingFactoryAddress);
+        ResourceFactory resourceFactory = ResourceFactory(_resourceFactoryAddress);
+        address gameAddress = address(this);
         return Contracts({
-            goldContract: resourceManager.getGoldContract(),
-            castleContract: buildingManager.getCastleContract(),
-            buildingContracts: buildingManager.getAllContracts(),
-            resourceContracts: resourceManager.getAllContracts()
+            goldContract: resourceFactory.getGold(gameAddress),
+            castleContract: buildingFactory.getCastle(gameAddress),
+            buildingContracts: buildingFactory.getBuildings(gameAddress),
+            resourceContracts: resourceFactory.getResources(gameAddress)
         });
     }
 
+    function getPlacedBuildings() public view {
+
+    }
+
     function getShopItems(uint256 x, uint256 y) public view returns(Models.ShopItem[] memory){
-        return ShopManager(_shopManagerAddress).getShopItems(x, y);
+        return ShopFactory(_shopFactoryAddress).getShopItems(x, y);
     }
 
     function buyGold() public payable {
-        Resource(ResourceManager(_resourceManagerAddress).getGoldContract()).mint(msg.sender, (msg.value * 100000) / 1e18);
+        Resource(ResourceFactory(_resourceFactoryAddress).getGold(address(this))).mint(msg.sender, (msg.value * 100000) / 1e18);
     }
 
     function executeShopOrder(uint256 shopItemId) public {
-        Models.ShopItem memory shopItem = ShopManager(_shopManagerAddress).getShopItem(shopItemId);
+        Models.ShopItem memory shopItem = ShopFactory(_shopFactoryAddress).getShopItem(shopItemId);
         require(shopItem.id != 0, "Shop item does not exist");
 
         IERC20 productToken = IERC20(shopItem.product);
-        Resource goldToken = Resource(ResourceManager(_resourceManagerAddress).getGoldContract());
+        Resource goldToken = Resource(ResourceFactory(_resourceFactoryAddress).getGold(address(this)));
 
         if (shopItem.buySell == Models.BuySell.Buy) {
             require(goldToken.transferFrom(msg.sender, shopItem.owner, shopItem.price), "Gold transfer failed");
@@ -88,7 +89,7 @@ contract Game is Ownable {
         require(Utils.isTileDefined(tile), "Tile not found");        
        
         // Validate if building exists
-        Building building = BuildingManager(_buildingManagerAddress).get(buildingAddress);
+        Building building = BuildingFactory(_buildingFactoryAddress).getBuilding(buildingAddress);
         require(Utils.isBuildingDefined(building), "Invalid building");
 
         // Validate if terrain type matches with building's allowed terrain types
@@ -103,10 +104,10 @@ contract Game is Ownable {
         if(ownedBuildings.length == 0){
 
             // Ensure building address is castle
-            require(buildingAddress == BuildingManager(_buildingManagerAddress).getCastleContract(), "Invalid building");
+            require(buildingAddress == BuildingFactory(_buildingFactoryAddress).getCastle(address(this)), "Invalid building");
             
             // Burn gold for castle
-            Resource(ResourceManager(_resourceManagerAddress).getGoldContract()).burn(10000);
+            Resource(ResourceFactory(_resourceFactoryAddress).getGold(address(this))).burn(10000);
         
         }else{
 
@@ -119,6 +120,7 @@ contract Game is Ownable {
         
         // Register building ownership
         _ownedBuildings[msg.sender].push(encodedCordinates);
+        _occupiedCordinates.push(encodedCordinates);
     }
    
     function _hasAdjacentOwnedBuilding(uint256 x, uint256 y) private view returns (bool) {

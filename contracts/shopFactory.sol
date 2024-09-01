@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 import "@openzeppelin/contracts/access/Ownable.sol";
-import './models.sol';
 import './utils.sol';
-import './resource.sol';
 
-contract ShopManager is Ownable {
+contract ShopFactory is Ownable {
     using Utils for *;
 
     address private _owner;

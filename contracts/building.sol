@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
-
-import "./models.sol";
 import "./resource.sol";
 
 contract Building is Resource {
