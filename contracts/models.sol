@@ -8,7 +8,6 @@ contract Models{
     struct Tile {
         uint256 x;
         uint256 y;
-        uint256 elevation;
         Models.TerrainType terrainType;
         Models.BiomeType biomeType;
     }
