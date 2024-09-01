@@ -21,7 +21,10 @@ contract Building is Resource {
     Models.BuildingType private _buildingType;
     ResourceAmount[] private _inputResources;
     ResourceAmount[] private _outputResources;
-    mapping(uint8 => Models.TerrainType) private _allowedTerrainTypes;
+    Models.TerrainType[] private _allowedTerrainTypes;
+    mapping(uint8 => Models.TerrainType) private _allowedTerrainTypesMap;
+    BuildingDetails private _buildingDetails;
+
 
     constructor(
         string memory name,
@@ -32,6 +35,7 @@ contract Building is Resource {
         ResourceAmount[] memory outputResources,
         Models.TerrainType[] memory allowedTerrainTypes,
         Models.BuildingType buildingType) Resource(name,symbol,description,owner) {
+        
         _approve(address(this), owner, type(uint256).max);
         _buildingType = buildingType;
 
@@ -42,40 +46,34 @@ contract Building is Resource {
             _outputResources.push(outputResources[i]);
         }
         for (uint256 i = 0; i < allowedTerrainTypes.length; i++) {
-            _allowedTerrainTypes[uint8(allowedTerrainTypes[i])] = allowedTerrainTypes[i];
+            _allowedTerrainTypesMap[uint8(allowedTerrainTypes[i])] = allowedTerrainTypes[i];
+            _allowedTerrainTypes.push(allowedTerrainTypes[i]);
         }
     }
 
 
     function isAllowedTerrainType(Models.TerrainType terrainType) public view returns (bool) {
-        return _allowedTerrainTypes[uint8(terrainType)] == terrainType;
+        return _allowedTerrainTypesMap[uint8(terrainType)] == terrainType;
     }
 
-     function getBuildingDetails() public view returns (BuildingDetails memory) {
+    function getBuildingType() public view returns (Models.BuildingType){
+        return _buildingType;
+    }
 
-        uint8 terrainCount = 0;
-        for (uint8 i = 0; i < 256; i++) {
-            if (_allowedTerrainTypes[i] != Models.TerrainType.None) {
-                terrainCount++;
-            }
-        }
-
-        Models.TerrainType[] memory allowedTerrainArray = new Models.TerrainType[](terrainCount);
-        uint8 index = 0;
-        for (uint8 i = 0; i < 256; i++) {
-            if (_allowedTerrainTypes[i] != Models.TerrainType.None) {
-                allowedTerrainArray[index] = _allowedTerrainTypes[i];
-                index++;
-            }
-        }        
-        
-        return BuildingDetails({
-            name: _name,
-            description: _description,
-            buildingType: _buildingType,
-            inputResources: _inputResources,
-            outputResources: _outputResources,
-            allowedTerrainTypes: allowedTerrainArray
-        });
+     function getBuildingDetails() public view returns (
+        string memory, 
+        string memory, 
+        Models.BuildingType, 
+        ResourceAmount[] memory, 
+        ResourceAmount[] memory, 
+        Models.TerrainType[] memory){
+        return (
+            _name,
+            _description,
+            _buildingType,
+            _inputResources,
+            _outputResources,
+            _allowedTerrainTypes
+        );
     }
 }

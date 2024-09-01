@@ -40,6 +40,6 @@ library Utils {
     }    
 
     function isBuildingDefined(Building building) internal view returns (bool){
-        return building.getBuildingDetails().buildingType != Models.BuildingType.None;
+        return building.getBuildingType() != Models.BuildingType.None;
     }
 }

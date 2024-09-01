@@ -7,11 +7,6 @@ import "./models.sol";
 
 contract Resource is ERC20, Ownable {
 
-    struct ResourceDetails {
-        string name;
-        string description;
-    }
-
     string public _name;
     string public _description;
 
@@ -38,12 +33,5 @@ contract Resource is ERC20, Ownable {
 
     function burn(uint256 amount) public onlyOwner {
         _burn(msg.sender, amount);
-    }
-
-    function getResourceDetails() public view returns (ResourceDetails memory) {
-        return ResourceDetails({
-            name: _name,
-            description: _description
-        });
     }
 }
